@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+
+  .scrollbar-hidden {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-track-gray-100::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+
+  .scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+  }
+}
+
+@keyframes watercolorWave1 {
+  0% { transform: translate3d(-12%, -2%, 0) rotate(-10deg) scale(1); }
+  50% { transform: translate3d(14%, 3%, 0) rotate(-2deg) scale(1.08); }
+  100% { transform: translate3d(-12%, -2%, 0) rotate(-10deg) scale(1); }
+}
+
+@keyframes watercolorWave2 {
+  0% { transform: translate3d(10%, 0, 0) rotate(9deg) scale(1); }
+  50% { transform: translate3d(-14%, -4%, 0) rotate(15deg) scale(1.1); }
+  100% { transform: translate3d(10%, 0, 0) rotate(9deg) scale(1); }
+}
+
+@keyframes watercolorWave3 {
+  0% { transform: translate3d(-10%, 2%, 0) rotate(-6deg) scale(1); }
+  50% { transform: translate3d(12%, -3%, 0) rotate(4deg) scale(1.09); }
+  100% { transform: translate3d(-10%, 2%, 0) rotate(-6deg) scale(1); }
+}
+
+@keyframes watercolorWave4 {
+  0% { transform: translate3d(12%, 1%, 0) rotate(6deg) scale(1); }
+  50% { transform: translate3d(-16%, 4%, 0) rotate(-2deg) scale(1.1); }
+  100% { transform: translate3d(12%, 1%, 0) rotate(6deg) scale(1); }
+}
+
+@keyframes watercolorWave5 {
+  0% { transform: translate3d(-14%, 0, 0) rotate(-8deg) scale(1); }
+  50% { transform: translate3d(14%, -3%, 0) rotate(-14deg) scale(1.08); }
+  100% { transform: translate3d(-14%, 0, 0) rotate(-8deg) scale(1); }
+}
+
+.animate-watercolor-wave-1 { animation: watercolorWave1 4s ease-in-out infinite; }
+.animate-watercolor-wave-2 { animation: watercolorWave2 4.8s ease-in-out infinite; }
+.animate-watercolor-wave-3 { animation: watercolorWave3 4.4s ease-in-out infinite; }
+.animate-watercolor-wave-4 { animation: watercolorWave4 5.2s ease-in-out infinite; }
+.animate-watercolor-wave-5 { animation: watercolorWave5 5.6s ease-in-out infinite; }
+
+@keyframes watercolorDarkPulse {
+  0% { transform: scale(1) translate3d(0, 0, 0); opacity: 0.92; }
+  50% { transform: scale(1.06) translate3d(-1.5%, -1%, 0); opacity: 1; }
+  100% { transform: scale(1) translate3d(0, 0, 0); opacity: 0.92; }
+}
+
+.animate-watercolor-dark-pulse {
+  animation: watercolorDarkPulse 7s ease-in-out infinite;
+}

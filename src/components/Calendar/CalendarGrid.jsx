@@ -1,0 +1,291 @@
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import * as FiIcons from 'react-icons/fi';
+const { FiPlus, FiRefreshCw } = FiIcons;
+import { useAuth } from '../../contexts/AuthContext';
+import BookingCell from './BookingCell';
+import AddRoomModal from '../Modals/AddRoomModal';
+import { format } from 'date-fns';
+import SafeIcon from '../../common/SafeIcon';
+import { ALL_SLOTS, slotsBetween, SLOT_HEIGHT_PX } from '../../utils/timeSlots';
+
+// Statuses that should NOT appear on the grid (Hidden = room is freed)
+const HIDDEN_STATUSES = new Set(['Not started', 'Incomplete', 'Cancelled', 'Error']);
+
+const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookingDelete, getAvailableRooms, onEditBooking, onNewBooking, onNewCourse, onDuplicate, onRefresh }) => {
+  const [showAddRoomModal, setShowAddRoomModal] = useState(false);
+  const { canEditBookings } = useAuth();
+  const headerScrollRef = useRef(null);
+  const bodyScrollRef = useRef(null);
+  const syncLockRef = useRef(false);
+
+
+  /**
+   * bookingsLookup shape:
+   *   { [roomId]: { [slotTime "HH:MM"]: { booking, isFirstSlot, slotSpan } | 'continuation' } }
+   *
+   * For each booking we compute its slots via slotsBetween(), then:
+   *   - first slot  → { booking, isFirstSlot: true,  slotSpan: N }
+   *   - other slots → { booking, isFirstSlot: false, slotSpan: 1 }  (continuation)
+   */
+  const bookingsLookup = useMemo(() => {
+    if (!Array.isArray(bookings)) return {};
+    if (!Array.isArray(rooms)) return {};
+
+    // Build room normalisation map  (room_number and id → room object)
+    const roomMap = new Map();
+    rooms.forEach(room => {
+      roomMap.set(String(room.id).toLowerCase(), room);
+      if (room.room_number) {
+        roomMap.set(String(room.room_number).toLowerCase(), room);
+      }
+    });
+
+    const lookup = {}; // { roomId: { slotTime: { booking, isFirstSlot, slotSpan } } }
+
+    bookings.forEach(booking => {
+      // --- Status filter ---
+      const status = booking.courseStatus || booking.Status || booking['Status'] || '';
+      if (HIDDEN_STATUSES.has(status)) return;
+
+      // --- Resolve room ---
+      let room = null;
+      const bookingRoom = String(booking['Room'] || '').trim().toLowerCase();
+      if (roomMap.has(bookingRoom)) {
+        room = roomMap.get(bookingRoom);
+      } else {
+        const roomNum = bookingRoom.replace(/room\s*/i, '');
+        if (roomMap.has(roomNum)) room = roomMap.get(roomNum);
+      }
+      if (!room) return; // skip if room not in current list
+
+      const normalizedRoomId = room.id;
+      const displayRoomName = room.room_number
+        ? (String(room.room_number).toLowerCase().includes('room') ? room.room_number : `Room ${room.room_number}`)
+        : room.name;
+
+      const processedBooking = { ...booking, displayRoomName, _normalizedRoomId: normalizedRoomId };
+
+      // --- Compute occupied slots ---
+      const slots = slotsBetween(booking['Start time'], booking['End time']);
+      if (slots.length === 0) return;
+
+      if (!lookup[normalizedRoomId]) lookup[normalizedRoomId] = {};
+
+      slots.forEach((slotTime, idx) => {
+        // Don't overwrite a tile that already claimed this slot
+        if (lookup[normalizedRoomId][slotTime]) return;
+        lookup[normalizedRoomId][slotTime] = {
+          booking: processedBooking,
+          isFirstSlot: idx === 0,
+          slotSpan: idx === 0 ? slots.length : 1,
+        };
+      });
+    });
+
+    return lookup;
+  }, [bookings, rooms]);
+
+  const handleCellClick = useCallback((roomId, sessionType, booking) => {
+    if (!canEditBookings()) return;
+    if (booking) {
+      if (onEditBooking) onEditBooking(booking);
+    } else {
+      if (onNewBooking) onNewBooking(roomId, sessionType, selectedDate);
+    }
+  }, [canEditBookings, onEditBooking, onNewBooking, selectedDate]);
+
+  const handleBookingDrop = async () => {
+    console.warn('Drag and drop not fully implemented for Courses table');
+  };
+
+  const syncHorizontalScroll = useCallback((source, target) => {
+    if (!source || !target) return;
+    if (syncLockRef.current) return;
+    syncLockRef.current = true;
+    target.scrollLeft = source.scrollLeft;
+    requestAnimationFrame(() => { syncLockRef.current = false; });
+  }, []);
+
+  const handleHeaderScroll = useCallback(() => {
+    syncHorizontalScroll(headerScrollRef.current, bodyScrollRef.current);
+  }, [syncHorizontalScroll]);
+
+  const handleBodyScroll = useCallback(() => {
+    syncHorizontalScroll(bodyScrollRef.current, headerScrollRef.current);
+  }, [syncHorizontalScroll]);
+
+  return (
+    <>
+      <div className="bg-white rounded-xl shadow-md border border-gray-200">
+        {/* ── Top bar ── */}
+        <div className="px-4 py-3 md:px-6 md:py-4 border-b border-gray-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+          <h2 className="text-lg md:text-xl font-bold text-gray-800">
+            {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+          </h2>
+          <div className="flex items-center gap-2 md:gap-4 w-full md:w-auto justify-between md:justify-end">
+            <div className="text-xs md:text-sm text-gray-500 font-medium">
+              {rooms.length} Rooms Available
+            </div>
+            <a href="/pomodoro" target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors border border-red-100 group"
+              title="Open Pomodoro Timer">
+              <FiIcons.FiClock className="h-4 w-4 group-hover:animate-pulse" />
+            </a>
+            <a href="/?view=notifications" target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors border border-red-100 group"
+              title="Open Notifications">
+              <FiIcons.FiBell className="h-4 w-4 group-hover:animate-swing" />
+            </a>
+            <button onClick={onRefresh}
+              className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Refresh">
+              <SafeIcon icon={FiRefreshCw} className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Sticky column header ── */}
+        <div ref={headerScrollRef} onScroll={handleHeaderScroll}
+          className="overflow-x-auto scrollbar-hidden sticky top-[var(--app-header-height)] z-30 bg-gray-50/50 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+          <div className="inline-block min-w-full align-middle">
+            <div className="flex border-b border-gray-200 bg-gray-50/50">
+              {/* Time column header */}
+              <div className="w-16 md:w-24 flex-shrink-0 px-2 py-4 font-bold text-gray-700 bg-gray-100 sticky left-0 z-40 border-r border-gray-200 shadow-[2px_0_5px_rgba(0,0,0,0.05)] text-xs md:text-sm flex items-center">
+                <span className="hidden md:inline">Time</span>
+                <span className="md:hidden">⏱</span>
+              </div>
+              {rooms.map(room => (
+                <div key={room.id}
+                  className="w-[160px] md:w-[220px] flex-shrink-0 px-2 md:px-4 py-4 text-center border-r border-gray-200 group hover:bg-white transition-colors">
+                  <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-wider text-xs md:text-sm truncate">
+                    {room.room_number}
+                  </div>
+                  <div className="text-[10px] md:text-[11px] font-semibold text-gray-400 mt-1 flex items-center justify-center gap-1">
+                    <SafeIcon name="Users" className="w-3 h-3" />
+                    CAP: {room.capacity ?? '—'}
+                  </div>
+                </div>
+              ))}
+              {canEditBookings() && (
+                <div className="w-[160px] md:w-[220px] flex-shrink-0 px-4 py-4 flex items-center justify-center">
+                  <button onClick={() => setShowAddRoomModal(true)}
+                    className="flex items-center justify-center w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 group">
+                    <SafeIcon icon={FiPlus} className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm font-semibold">New Room</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── 30-minute slot rows ── */}
+        <div ref={bodyScrollRef} onScroll={handleBodyScroll}
+          className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+          <div className="inline-block min-w-full align-middle">
+            {ALL_SLOTS.map((slotTime, slotIdx) => {
+              const isHourMark = slotTime.endsWith(':00');
+              return (
+                <div
+                  key={slotTime}
+                  className={`flex border-b ${isHourMark ? 'border-gray-200' : 'border-gray-100'}`}
+                  style={{ height: `${SLOT_HEIGHT_PX}px` }}
+                >
+                  {/* Time label */}
+                  <div className={`w-16 md:w-24 flex-shrink-0 px-1 md:px-3 flex items-center border-r border-gray-200 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] ${isHourMark ? 'bg-gray-100' : 'bg-gray-50'}`}>
+                    <span className={`text-[10px] md:text-xs font-mono ${isHourMark ? 'font-bold text-gray-700' : 'text-gray-400'}`}>
+                      {slotTime}
+                    </span>
+                  </div>
+
+                  {/* Room cells */}
+                  {rooms.map(room => {
+                    const slotData = bookingsLookup[room.id]?.[slotTime];
+                    // White separator: true when this is the first slot of a new booking
+                    // AND the slot immediately above it was a continuation of a different booking
+                    const prevSlotTime = slotIdx > 0 ? ALL_SLOTS[slotIdx - 1] : null;
+                    const prevSlotData = prevSlotTime ? bookingsLookup[room.id]?.[prevSlotTime] : null;
+                    const hasBorderTop = !!(slotData?.isFirstSlot && prevSlotData && !prevSlotData.isFirstSlot);
+
+                    if (!slotData) {
+                      // Empty interactive slot
+                      return (
+                        <BookingCell
+                          key={`${room.id}-${slotTime}`}
+                          roomId={room.id}
+                          sessionType={slotTime}
+                          booking={undefined}
+                          bookings={undefined}
+                          onCellClick={handleCellClick}
+                          onDrop={handleBookingDrop}
+                          canEdit={canEditBookings()}
+                          onDelete={onBookingDelete}
+                          onNewCourse={onNewCourse}
+                          onDuplicate={onDuplicate}
+                          isFirstSlot={true}
+                          slotSpan={1}
+                          slotTime={slotTime}
+                        />
+                      );
+                    }
+
+                    // Continuation slot — silent blocker
+                    if (!slotData.isFirstSlot) {
+                      return (
+                        <BookingCell
+                          key={`${room.id}-${slotTime}`}
+                          roomId={room.id}
+                          sessionType={slotTime}
+                          booking={undefined}
+                          bookings={undefined}
+                          onCellClick={handleCellClick}
+                          onDrop={handleBookingDrop}
+                          canEdit={canEditBookings()}
+                          onDelete={onBookingDelete}
+                          onNewCourse={onNewCourse}
+                          onDuplicate={onDuplicate}
+                          isFirstSlot={false}
+                          slotSpan={1}
+                          slotTime={slotTime}
+                        />
+                      );
+                    }
+
+                    // First slot of a booking — render full spanning tile
+                    return (
+                      <BookingCell
+                        key={`${room.id}-${slotTime}`}
+                        roomId={room.id}
+                        sessionType={slotTime}
+                        booking={slotData.booking}
+                        bookings={undefined}
+                        onCellClick={handleCellClick}
+                        onDrop={handleBookingDrop}
+                        canEdit={canEditBookings()}
+                        onDelete={onBookingDelete}
+                        onNewCourse={onNewCourse}
+                        onDuplicate={onDuplicate}
+                        isFirstSlot={true}
+                        slotSpan={slotData.slotSpan}
+                        slotTime={slotTime}
+                        hasBorderTop={hasBorderTop}
+                      />
+                    );
+                  })}
+
+                  {canEditBookings() && (
+                    <div className="w-[160px] md:w-[220px] flex-shrink-0 bg-gray-50/20 border-r border-gray-100" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <AddRoomModal isOpen={showAddRoomModal} onClose={() => setShowAddRoomModal(false)} />
+    </>
+  );
+};
+
+export default CalendarGrid;
