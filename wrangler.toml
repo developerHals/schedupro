@@ -1,0 +1,7 @@
+name = "schedupro"
+compatibility_date = "2024-07-28"
+
+[[d1_databases]]
+binding = "schedupro_db"
+database_name = "schedupro-db"
+database_id = "beaa4b4f-d568-4ff3-af9e-dd6dfe1e4e5e"
