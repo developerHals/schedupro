@@ -23,12 +23,12 @@ export const AuthProvider = ({ children }) => {
     const fetchMe = async () => {
       try {
         const res = await fetch('/api/auth/me')
-        if (res.status === 401) {
-          window.location.href = '/api/auth/login'
-          return
-        }
         const json = await res.json()
-        if (json.unauthorized) {
+        if (res.status === 401) {
+          setUser(null)
+          setProfile(guestProfile)
+          setUnauthorized(false)
+        } else if (json.unauthorized) {
           setUnauthorized(true)
           setUser(null)
           setProfile(guestProfile)
