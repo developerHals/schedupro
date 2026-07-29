@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { format, parseISO, getDay } from 'date-fns'
 import { sortRooms } from '../utils/roomSort'
 import { slotsBetween } from '../utils/timeSlots'
+import { dataService } from '../lib/dataService'
 import {
   MOCK_ROOMS,
   MOCK_BOOKINGS,
@@ -21,7 +22,17 @@ export const useBookings = (selectedDate) => {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    setRooms(sortRooms(MOCK_ROOMS))
+    const fetchRooms = async () => {
+      try {
+        const { data, error } = await dataService.from('rooms').select('id, room_number')
+        if (error) throw error
+        setRooms(sortRooms(data || []))
+      } catch (err) {
+        console.error('Error fetching rooms:', err)
+        setRooms(sortRooms(MOCK_ROOMS))
+      }
+    }
+    fetchRooms()
   }, [])
 
   useEffect(() => {

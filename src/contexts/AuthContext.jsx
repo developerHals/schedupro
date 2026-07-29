@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 
 const AuthContext = createContext()
 
@@ -10,29 +10,62 @@ export const useAuth = () => {
   return context
 }
 
-// Public guest session: no edit/delete permissions and no signed-in user UI.
 const guestProfile = { id: 'guest', email: 'guest@example.com', role: 'guest', full_name: 'Guest' }
 
 export const AuthProvider = ({ children }) => {
-  const isSuperuser = () => false
-  const isAdmin = () => false
-  const isCM = () => false
-  const canEditBookings = () => false
-  const canEditBooking = () => false
-  const canDeleteBooking = () => false
+  const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(guestProfile)
+  const [loading, setLoading] = useState(true)
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
+
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        const json = await res.json()
+        if (json.data?.user) {
+          const u = json.data.user
+          setUser(u)
+          setProfile({
+            id: u.id,
+            email: u.email,
+            role: u.role?.toLowerCase() || 'guest',
+            full_name: u.full_name || u.email,
+            status: u.status || 'active',
+            date_created: u.date_created,
+          })
+        }
+      } catch (err) {
+        console.error('Auth fetch failed:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMe()
+  }, [])
+
+  const role = profile?.role || 'guest'
+  const isActive = profile?.status === 'active'
+  const isSuperuser = () => isActive && role === 'superuser'
+  const isAdmin = () => isActive && (role === 'admin' || role === 'superuser')
+  const isCM = () => isActive && (role === 'cm' || role === 'curriculum manager' || isAdmin())
+  const canEditBookings = () => isAdmin() || isCM()
+  const canEditBooking = () => isAdmin() || isCM()
+  const canDeleteBooking = () => isAdmin() || isCM()
 
   const value = {
-    user: null,
-    profile: guestProfile,
-    loading: false,
+    user,
+    profile,
+    loading,
     isSuperuser,
     isAdmin,
     isCM,
     canEditBookings,
     canEditBooking,
     canDeleteBooking,
-    isPasswordRecovery: false,
-    clearPasswordRecovery: () => {},
+    isPasswordRecovery,
+    setIsPasswordRecovery,
+    clearPasswordRecovery: () => setIsPasswordRecovery(false),
   }
 
   return (
