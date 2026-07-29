@@ -1,4 +1,4 @@
-import { requireUser, requireRoles } from './auth/_helpers.js';
+import { requireRoles } from './auth/_helpers.js';
 
 function parseCapacity(value) {
   if (value === undefined || value === null || value === '') return 20;
@@ -18,8 +18,6 @@ export async function onRequest(context) {
     const writeMethods = ['POST', 'PATCH', 'DELETE'];
     if (writeMethods.includes(request.method)) {
       await requireRoles(request, env, ['Admin', 'Superuser']);
-    } else {
-      await requireUser(request, env);
     }
   } catch (err) {
     const status = err.message === 'Forbidden' || err.message === 'Account inactive' ? 403 : 401;

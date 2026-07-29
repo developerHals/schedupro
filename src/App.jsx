@@ -509,27 +509,6 @@ function AppContent() {
     )
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-4">
-        <div className="bg-white p-8 rounded-2xl shadow-lg max-w-sm w-full text-center">
-          <div className="flex items-center justify-center mb-6">
-            <img src="/Logo.png" alt="SCHEDUPRO" className="h-16 w-16" />
-          </div>
-          <h1 className="text-2xl font-black text-gray-900 mb-2">SCHEDUPRO</h1>
-          <p className="text-sm text-gray-500 mb-8">Curriculum Planning</p>
-          <p className="text-gray-600 mb-6">Sign in with your Haringey Learn account to continue.</p>
-          <a
-            href="/api/auth/login"
-            className="inline-flex items-center justify-center w-full px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-bold text-sm"
-          >
-            Sign in with Microsoft
-          </a>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />

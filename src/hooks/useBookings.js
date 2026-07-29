@@ -22,7 +22,6 @@ export const useBookings = (selectedDate, user = null) => {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!user) return
     const fetchRooms = async () => {
       try {
         const { data, error } = await dataService.from('rooms').select('id, room_number')
@@ -34,12 +33,11 @@ export const useBookings = (selectedDate, user = null) => {
       }
     }
     fetchRooms()
-  }, [user])
+  }, [])
 
   useEffect(() => {
-    if (!user) return
     loadData()
-  }, [selectedDate, user])
+  }, [selectedDate])
 
   const loadData = () => {
     try {
