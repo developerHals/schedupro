@@ -16,14 +16,23 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(guestProfile)
   const [loading, setLoading] = useState(true)
+  const [unauthorized, setUnauthorized] = useState(false)
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
 
   useEffect(() => {
     const fetchMe = async () => {
       try {
         const res = await fetch('/api/auth/me')
+        if (res.status === 401) {
+          window.location.href = '/api/auth/login'
+          return
+        }
         const json = await res.json()
-        if (json.data?.user) {
+        if (json.unauthorized) {
+          setUnauthorized(true)
+          setUser(null)
+          setProfile(guestProfile)
+        } else if (json.data?.user) {
           const u = json.data.user
           setUser(u)
           setProfile({
@@ -34,9 +43,14 @@ export const AuthProvider = ({ children }) => {
             status: u.status || 'active',
             date_created: u.date_created,
           })
+          setUnauthorized(false)
+        } else if (json.error) {
+          console.error('Auth fetch returned error:', json.error)
+          setUnauthorized(true)
         }
       } catch (err) {
         console.error('Auth fetch failed:', err)
+        setUnauthorized(true)
       } finally {
         setLoading(false)
       }
@@ -57,6 +71,7 @@ export const AuthProvider = ({ children }) => {
     user,
     profile,
     loading,
+    unauthorized,
     isSuperuser,
     isAdmin,
     isCM,

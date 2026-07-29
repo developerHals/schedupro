@@ -15,13 +15,14 @@ import {
   deleteCourseByCourseId,
 } from '../lib/mockData'
 
-export const useBookings = (selectedDate) => {
+export const useBookings = (selectedDate, user = null) => {
   const [bookings, setBookings] = useState([])
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (!user) return
     const fetchRooms = async () => {
       try {
         const { data, error } = await dataService.from('rooms').select('id, room_number')
@@ -33,11 +34,12 @@ export const useBookings = (selectedDate) => {
       }
     }
     fetchRooms()
-  }, [])
+  }, [user])
 
   useEffect(() => {
+    if (!user) return
     loadData()
-  }, [selectedDate])
+  }, [selectedDate, user])
 
   const loadData = () => {
     try {

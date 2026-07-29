@@ -1,30 +1,63 @@
-// DEV ONLY: returns the hardcoded superuser so the UI can be tested.
-// Replace this with Microsoft SSO / Entra ID integration before production.
-export async function onRequest(context) {
-  const db = context.env.schedupro_db;
-  const email = 'development@haringeylearns.ac.uk';
+import {
+  parseCookies,
+  verifyJwt,
+  clearCookie,
+  createUnauthorizedCookie,
+  getSessionUser,
+  getSessionEmail,
+  serializeCookie,
+  signJwt,
+} from './_helpers.js';
 
-  const user = await db
-    .prepare('SELECT id, email, role, full_name, status, date_created FROM users WHERE email = ?1')
-    .bind(email)
-    .first();
+export async function onRequestGet(context) {
+  const { request, env } = context;
+  const db = env.schedupro_db;
+  const secret = env.AUTH_COOKIE_SECRET;
 
-  if (user) {
-    return Response.json({ data: { user }, error: null });
+  if (!db) {
+    return new Response('Database not configured', { status: 500 });
+  }
+  if (!secret) {
+    return new Response('Auth cookie secret not configured', { status: 500 });
   }
 
-  // If the superuser row does not exist yet, return a synthetic profile.
-  return Response.json({
-    data: {
-      user: {
-        id: 'dev-superuser',
-        email,
-        role: 'Superuser',
-        full_name: 'Development Superuser',
-        status: 'active',
-        date_created: new Date().toISOString(),
-      },
-    },
-    error: null,
-  });
+  const cookies = parseCookies(request.headers.get('Cookie'));
+  const unauthorizedToken = cookies['schedupro_unauthorized'];
+  if (unauthorizedToken) {
+    const payload = await verifyJwt(unauthorizedToken, secret);
+    if (payload && payload.unauthorized) {
+      return Response.json({
+        data: null,
+        unauthorized: true,
+        error: 'You do not have access to this application. Please contact the administrator.',
+      });
+    }
+  }
+
+  const user = await getSessionUser(request, env);
+  if (!user) {
+    const email = await getSessionEmail(request, env);
+    if (email) {
+      // Valid Microsoft session, but the email is not in the users table.
+      const headers = new Headers();
+      const unauthorizedCookie = await createUnauthorizedCookie(email, secret);
+      headers.append('Set-Cookie', unauthorizedCookie);
+      headers.append('Set-Cookie', clearCookie('schedupro_session'));
+      return Response.json(
+        {
+          data: null,
+          unauthorized: true,
+          error: 'You do not have access to this application. Please contact the administrator.',
+        },
+        { headers }
+      );
+    }
+    return Response.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (user.status !== 'active') {
+    return Response.json({ data: null, error: 'Account inactive' }, { status: 403 });
+  }
+
+  return Response.json({ data: { user }, error: null });
 }

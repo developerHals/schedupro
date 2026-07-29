@@ -1,14 +1,24 @@
+import { requireRoles } from './_helpers.js';
+
 const VALID_ROLES = ['Standard', 'Admin', 'Superuser', 'CM'];
 const VALID_STATUSES = ['active', 'inactive'];
 
 export async function onRequest(context) {
-  const db = context.env.schedupro_db;
+  const { request, env } = context;
+  const db = env.schedupro_db;
   if (!db) {
     return new Response('Database not configured', { status: 500 });
   }
-  const url = new URL(context.request.url);
+  const url = new URL(request.url);
 
-  if (context.request.method === 'GET') {
+  try {
+    await requireRoles(request, env, ['Superuser']);
+  } catch (err) {
+    const status = err.message === 'Forbidden' || err.message === 'Account inactive' ? 403 : 401;
+    return Response.json({ data: null, error: err.message }, { status });
+  }
+
+  if (request.method === 'GET') {
     const email = url.searchParams.get('email');
     let sql = 'SELECT id, email, role, full_name, status, date_created FROM users';
     let stmt;
@@ -22,8 +32,8 @@ export async function onRequest(context) {
     return Response.json({ data: results || [], error: null });
   }
 
-  if (context.request.method === 'POST') {
-    const body = await context.request.json();
+  if (request.method === 'POST') {
+    const body = await request.json();
     const rows = Array.isArray(body) ? body : [body];
     const created = [];
     for (const row of rows) {
@@ -61,12 +71,12 @@ export async function onRequest(context) {
     return Response.json({ data: created, error: null }, { status: 201 });
   }
 
-  if (context.request.method === 'PATCH') {
+  if (request.method === 'PATCH') {
     const id = url.searchParams.get('id');
     if (!id) {
       return Response.json({ data: null, error: 'Missing id query parameter' }, { status: 400 });
     }
-    const body = await context.request.json();
+    const body = await request.json();
     const allowed = ['email', 'role', 'full_name', 'status'];
     const fields = [];
     const values = [];
@@ -108,7 +118,7 @@ export async function onRequest(context) {
     return Response.json({ data: updated, error: null });
   }
 
-  if (context.request.method === 'DELETE') {
+  if (request.method === 'DELETE') {
     const id = url.searchParams.get('id');
     if (!id) {
       return Response.json({ data: null, error: 'Missing id query parameter' }, { status: 400 });

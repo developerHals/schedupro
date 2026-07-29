@@ -100,7 +100,7 @@ function AppContent() {
   const [bookingToApprove, setBookingToApprove] = useState(null)
   const [showApproveModal, setShowApproveModal] = useState(false)
   
-  const { user, profile, isSuperuser } = useAuth()
+  const { user, profile, isSuperuser, unauthorized, loading: authLoading } = useAuth()
   const {
     bookings,
     rooms,
@@ -114,7 +114,7 @@ function AppContent() {
     getAvailableRooms,
     refresh,
     error: bookingsError
-  } = useBookings(selectedDate)
+  } = useBookings(selectedDate, user)
 
   const handleBookRoom = React.useCallback(async (bookingData) => {
     try {
@@ -478,9 +478,39 @@ function AppContent() {
     }
   }, [deleteCourse]);
 
-  const handleLogout = () => {}
+  const handleLogout = () => {
+    window.location.href = '/api/auth/logout'
+  }
 
-  // Public timetable view: no login gate, just render the app.
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (unauthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access denied</h2>
+          <p className="text-gray-600 mb-6">
+            Sorry, you do not have access to this application. Please contact the administrator to request access.
+          </p>
+          <a
+            href="/api/auth/logout"
+            className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Sign out
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) return null
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
