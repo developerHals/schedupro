@@ -629,6 +629,25 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
                   </button>
                 </>
               )}
+
+              {!user && (
+                <>
+                  <div className="h-px bg-gray-100 my-1"></div>
+                  <a
+                    href="/api/auth/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center p-3 bg-gray-50 rounded-xl hover:bg-blue-50 transition-colors group w-full"
+                  >
+                    <div className="bg-white p-2.5 rounded-lg shadow-sm mr-3 group-hover:text-blue-600 transition-colors">
+                      <SafeIcon icon={FiLogIn} className="h-4 w-4" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-gray-900">Login</p>
+                      <p className="text-[10px] text-gray-500 font-medium">Sign in with Microsoft</p>
+                    </div>
+                  </a>
+                </>
+              )}
             </div>
           </div>
         )}
