@@ -1,4 +1,4 @@
-import { requireUser, requireRoles } from './_helpers.js';
+import { requireUser, requireRoles } from './auth/_helpers.js';
 
 function parseCapacity(value) {
   if (value === undefined || value === null || value === '') return 20;

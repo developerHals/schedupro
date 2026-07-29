@@ -1,4 +1,4 @@
-import { requireRoles } from './_helpers.js';
+import { requireRoles } from './auth/_helpers.js';
 
 const VALID_ROLES = ['Standard', 'Admin', 'Superuser', 'CM'];
 const VALID_STATUSES = ['active', 'inactive'];
