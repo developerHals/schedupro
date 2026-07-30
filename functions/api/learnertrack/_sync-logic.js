@@ -125,7 +125,7 @@ export async function runSync(env, { academicYear } = {}) {
       await upsertCourse(db, course);
       coursesSynced += 1;
 
-      const sessions = await fetchJson(buildUrl('CourseInstanceSession', { courseinstanceid: course.ID }, env));
+      const sessions = await fetchJson(buildUrl('Session', { courseinstanceid: course.ID }, env));
       for (const session of sessions) {
         if (!session || !session.ID) continue;
         await upsertSession(db, session);
