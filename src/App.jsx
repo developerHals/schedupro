@@ -63,6 +63,21 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+const VIEW_ROUTES = {
+  calendar: 'timetable',
+  courses: 'courses',
+  'course-calendar': 'calendar',
+  'room-calendar': 'rooms',
+  'tutor-calendar': 'tutors',
+  database: 'list',
+  'our-courses': 'ourcourses',
+  'term-dates': 'dates',
+  'approve-bookings': 'bookings',
+}
+const ROUTE_TO_VIEW = Object.fromEntries(
+  Object.entries(VIEW_ROUTES).map(([view, slug]) => [slug, view])
+)
+
 function AppContent() {
   const [currentView, setCurrentView] = useState(() => {
     const path = window.location.pathname.toLowerCase().replace(/\/$/, '')
@@ -72,16 +87,21 @@ function AppContent() {
     if (path.endsWith('/costing')) return 'costing'
     if (path.endsWith('/notifications')) return 'notifications'
 
+    const slug = path.replace(/^\//, '')
+    if (ROUTE_TO_VIEW[slug]) return ROUTE_TO_VIEW[slug]
+
     const params = new URLSearchParams(window.location.search)
-    return params.get('view') || 'calendar'
+    return params.get('view') || 'today'
   })
 
   useEffect(() => {
     // Update URL when view changes
-    const params = new URLSearchParams(window.location.search);
     if (currentView === 'today') {
       window.history.pushState({}, '', '/');
+    } else if (VIEW_ROUTES[currentView]) {
+      window.history.pushState({}, '', `/${VIEW_ROUTES[currentView]}`);
     } else {
+      const params = new URLSearchParams(window.location.search);
       params.set('view', currentView);
       window.history.pushState({}, '', `?${params.toString()}`);
     }
