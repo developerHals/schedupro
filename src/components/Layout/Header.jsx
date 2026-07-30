@@ -569,7 +569,7 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
                   }`}
                 >
                   <SafeIcon icon={FiDatabase} className="w-3.5 h-3.5 mr-2" />
-                  List
+                  Sessions
                 </button>
               </div>
 

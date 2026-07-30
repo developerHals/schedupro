@@ -69,10 +69,26 @@ const VIEW_ROUTES = {
   'course-calendar': 'calendar',
   'room-calendar': 'rooms',
   'tutor-calendar': 'tutors',
-  database: 'list',
+  database: 'sessions',
   'our-courses': 'ourcourses',
   'term-dates': 'dates',
   'approve-bookings': 'bookings',
+  'tailored-learning': 'tailored-learning',
+  'learning-aims': 'learning-aims',
+  tutors: 'manage-tutors',
+  cms: 'cms',
+  'deleted-courses': 'deleted-courses',
+  'backup-courses': 'backup-courses',
+  dashboard: 'dashboard',
+  'tasks-board': 'tasks',
+  pomodoro: 'pomodoro',
+  fees: 'fees',
+  users: 'users',
+  costing: 'costing',
+  notifications: 'notifications',
+  'income-report': 'income-report',
+  'tutor-dashboard': 'tutor-dashboard',
+  'rooms-dashboard': 'rooms-dashboard',
 }
 const ROUTE_TO_VIEW = Object.fromEntries(
   Object.entries(VIEW_ROUTES).map(([view, slug]) => [slug, view])
@@ -81,12 +97,6 @@ const ROUTE_TO_VIEW = Object.fromEntries(
 function AppContent() {
   const [currentView, setCurrentView] = useState(() => {
     const path = window.location.pathname.toLowerCase().replace(/\/$/, '')
-    if (path.endsWith('/pomodoro')) return 'pomodoro'
-    if (path.endsWith('/tasks')) return 'tasks-board'
-    if (path.endsWith('/dashboard')) return 'dashboard'
-    if (path.endsWith('/costing')) return 'costing'
-    if (path.endsWith('/notifications')) return 'notifications'
-
     const slug = path.replace(/^\//, '')
     if (ROUTE_TO_VIEW[slug]) return ROUTE_TO_VIEW[slug]
 
