@@ -7,8 +7,19 @@ import BulkUploadModal from '../Modals/BulkUploadModal';
 import ConfirmationModal from '../Modals/ConfirmationModal';
 
 import BookingRow from './BookingRow';
+import SessionsView from './SessionsView';
 
 const DatabaseView = ({ onBookingUpdate, onBookingDelete, viewMode = 'database', onRefresh, user, onApproveWithRoom }) => {
+  // 'database' now shows Learner Track sessions (read-only + local overrides).
+  // 'approve-bookings' keeps the original internal booking-approval workflow below.
+  if (viewMode === 'database') {
+    return <SessionsView onRefresh={onRefresh} />;
+  }
+
+  return <ApproveBookingsView onBookingUpdate={onBookingUpdate} onBookingDelete={onBookingDelete} viewMode={viewMode} onRefresh={onRefresh} user={user} onApproveWithRoom={onApproveWithRoom} />;
+};
+
+const ApproveBookingsView = ({ onBookingUpdate, onBookingDelete, viewMode = 'approve-bookings', onRefresh, user, onApproveWithRoom }) => {
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [loading, setLoading] = useState(true);
