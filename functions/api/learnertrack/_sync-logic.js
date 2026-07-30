@@ -103,7 +103,14 @@ async function upsertSession(db, session) {
     .run();
 }
 
-export async function runSync(env, { academicYear } = {}) {
+// Cloudflare Workers (Free plan) cap external fetch() calls at 50 per
+// invocation. The course list costs 1 fetch; each course's sessions cost 1
+// more. BATCH_SIZE keeps total fetches per run safely under that limit, with
+// progress persisted in lt_sync_state so consecutive runs (e.g. cron ticks)
+// each advance through the full course list until it wraps back to the start.
+const BATCH_SIZE = 40;
+
+export async function runSync(env, { academicYear, batchSize = BATCH_SIZE } = {}) {
   const db = env.schedupro_db;
   if (!db) throw new Error('Database not configured');
   if (!env.LT_API_KEY || !env.LT_USERNAME) throw new Error('Learner Track credentials not configured');
@@ -119,12 +126,23 @@ export async function runSync(env, { academicYear } = {}) {
   let sessionsSynced = 0;
 
   try {
-    const courses = await fetchJson(buildUrl('CourseInstance', { academicYear: year }, env));
+    const courses = (await fetchJson(buildUrl('CourseInstance', { academicYear: year }, env))).filter(
+      (c) => c && c.ID
+    );
     for (const course of courses) {
-      if (!course || !course.ID) continue;
       await upsertCourse(db, course);
       coursesSynced += 1;
+    }
 
+    const state = await db
+      .prepare('SELECT cursor FROM lt_sync_state WHERE academic_year = ?1')
+      .bind(year)
+      .first();
+    let cursor = state?.cursor || 0;
+    if (cursor >= courses.length) cursor = 0;
+
+    const batch = courses.slice(cursor, cursor + batchSize);
+    for (const course of batch) {
       const sessions = await fetchJson(buildUrl('Session', { courseinstanceid: course.ID }, env));
       for (const session of sessions) {
         if (!session || !session.ID) continue;
@@ -133,6 +151,17 @@ export async function runSync(env, { academicYear } = {}) {
       }
     }
 
+    const nextCursor = cursor + batch.length >= courses.length ? 0 : cursor + batch.length;
+    await db
+      .prepare(
+        `INSERT INTO lt_sync_state (academic_year, cursor, total_courses, updated_at)
+         VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)
+         ON CONFLICT(academic_year) DO UPDATE SET
+           cursor = ?2, total_courses = ?3, updated_at = CURRENT_TIMESTAMP`
+      )
+      .bind(year, nextCursor, courses.length)
+      .run();
+
     await db
       .prepare(
         'UPDATE lt_sync_log SET finished_at = CURRENT_TIMESTAMP, courses_synced = ?1, sessions_synced = ?2, status = ?3 WHERE id = ?4'
@@ -140,7 +169,12 @@ export async function runSync(env, { academicYear } = {}) {
       .bind(coursesSynced, sessionsSynced, 'success', logId)
       .run();
 
-    return { academicYear: year, coursesSynced, sessionsSynced };
+    return {
+      academicYear: year,
+      coursesSynced,
+      sessionsSynced,
+      sessionsBatch: { from: cursor, to: cursor + batch.length, totalCourses: courses.length, nextCursor },
+    };
   } catch (error) {
     await db
       .prepare(

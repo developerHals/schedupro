@@ -101,6 +101,16 @@ CREATE TABLE IF NOT EXISTS lt_session_overrides (
   FOREIGN KEY (local_room_id) REFERENCES rooms(id)
 );
 
+-- Tracks batching progress for the sessions sync (course list is small enough
+-- to always sync in full, but per-course session fetches are rate-limited by
+-- Workers subrequest caps, so they're processed in batches across invocations).
+CREATE TABLE IF NOT EXISTS lt_sync_state (
+  academic_year INTEGER PRIMARY KEY,
+  cursor INTEGER NOT NULL DEFAULT 0,
+  total_courses INTEGER,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS lt_sync_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
