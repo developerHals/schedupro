@@ -20,8 +20,21 @@ export async function onRequestPost(context) {
     }
   }
 
+  const url = new URL(request.url);
+
+  // TEMPORARY diagnostic: confirms what's actually bound without ever exposing the full secret.
+  if (url.searchParams.get('debug') === '1') {
+    const mask = (v) => (v ? `len=${v.length} tail=...${String(v).slice(-4)}` : 'MISSING');
+    return Response.json({
+      data: {
+        LT_API_KEY: mask(env.LT_API_KEY),
+        LT_USERNAME: mask(env.LT_USERNAME),
+      },
+      error: null,
+    });
+  }
+
   try {
-    const url = new URL(request.url);
     const academicYear = url.searchParams.get('academicYear');
     const result = await runSync(env, { academicYear: academicYear ? Number(academicYear) : undefined });
     return Response.json({ data: result, error: null });
