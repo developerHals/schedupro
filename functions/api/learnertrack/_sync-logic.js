@@ -38,7 +38,7 @@ async function upsertCourse(db, course) {
         "Tutor","AcademicYear","StartTerm","Times","Weeks","AvailablePlaces","FullFee","ConcessionFee",
         "MaterialFee","ExamFee","TotalFeePayable","DeliveryModeID","ApprovalCode","ApprovalLabel","IsExam",
         "Level", raw_json, synced_at
-      ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,CURRENT_TIMESTAMP)
+      ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27,?28,?29,?30,?31,CURRENT_TIMESTAMP)
       ON CONFLICT("ID") DO UPDATE SET
         "CourseCode"=excluded."CourseCode", "CatID"=excluded."CatID", "CatLabel"=excluded."CatLabel",
         "OptionGroupID"=excluded."OptionGroupID", "OptionGroup"=excluded."OptionGroup",
