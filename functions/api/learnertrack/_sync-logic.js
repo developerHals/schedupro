@@ -23,7 +23,11 @@ function buildUrl(path, params, env) {
 async function fetchJson(url) {
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) {
-    throw new Error(`Learner Track request failed (${res.status}): ${url.split('?')[0]}`);
+    let bodyText = '';
+    try {
+      bodyText = (await res.text()).slice(0, 300);
+    } catch {}
+    throw new Error(`Learner Track request failed (${res.status}): ${url.split('?')[0]} :: ${bodyText}`);
   }
   const json = await res.json();
   return Array.isArray(json) ? json : [];
