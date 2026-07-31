@@ -126,7 +126,7 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
       const status = String(session.BookingStatus || '').trim().toLowerCase();
       if (status.includes('cancel')) return;
 
-      const room = resolveRoom(session.local_room_number || session.RoomLabel);
+      const room = resolveRoom(session.local_room_number || session.RoomLabel || session.RoomId);
       if (!room) return;
       matchedSessions++;
 
