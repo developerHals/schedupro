@@ -8,6 +8,38 @@
 
 const LT_BASE_URL = 'https://api.learnertrack.net/api';
 
+const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+function normalizeDate(dateStr) {
+  if (!dateStr) return null;
+  const str = String(dateStr).trim();
+  // Already ISO-ish YYYY-MM-DD(...)
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+
+  // Parse "08 Sep 2026" / "8 September 2026" / "08/09/2026" etc.
+  const match = str.match(/^(\d{1,2})[\s\-/]+([A-Za-z]+)[\s\-/]+(\d{4})$/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const monthPart = match[2].toLowerCase();
+    let monthIdx = MONTHS.indexOf(monthPart);
+    if (monthIdx === -1) {
+      monthIdx = MONTHS.findIndex((m) => monthPart.startsWith(m));
+    }
+    if (monthIdx !== -1) {
+      const month = String(monthIdx + 1).padStart(2, '0');
+      return `${match[3]}-${month}-${day}`;
+    }
+  }
+
+  // Fall back to generic Date parsing
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().slice(0, 10);
+  }
+
+  return str;
+}
+
 function buildUrl(path, params, env) {
   const url = new URL(`${LT_BASE_URL}/${path}`);
   url.searchParams.set('api_key', env.LT_API_KEY);
@@ -71,6 +103,9 @@ async function upsertCourse(db, course) {
 }
 
 async function upsertSession(db, session) {
+  const rawJson = JSON.stringify(session);
+  const normalizedDate = normalizeDate(session.Date);
+
   await db
     .prepare(
       `INSERT INTO lt_sessions (
@@ -95,10 +130,10 @@ async function upsertSession(db, session) {
     .bind(
       session.ID, session.CourseInstanceID, session.Session_number, session.CourseTitle, session.CourseLabel,
       session.CourseShortLabel, session.CourseStatusCode, session.CourseStatus, session.CatID,
-      session.AcademicYear, session.Date, session.DayOfWeek, session.StartTime, session.EndTime, session.Term,
+      session.AcademicYear, normalizedDate, session.DayOfWeek, session.StartTime, session.EndTime, session.Term,
       session.BookingStatusID, session.BookingStatus, session.ProviderId, session.ProviderLabel,
       session.LocationId, session.LocationLabel, session.RoomId, session.RoomLabel, session.TutorId,
-      session.TutorLabel, JSON.stringify(session)
+      session.TutorLabel, rawJson
     )
     .run();
 }
