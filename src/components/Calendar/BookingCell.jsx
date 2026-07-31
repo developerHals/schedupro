@@ -140,7 +140,7 @@ const BookingCell = ({
   const cellClasses = `
     w-[160px] md:w-[220px] flex-shrink-0 border-r border-gray-100 relative transition-all duration-200
     ${canEdit && !isContinuation && !isLearnerTrackSession ? 'cursor-pointer' : ''}
-    ${isDragOver && !isContinuation ? 'bg-blue-200 scale-[0.98] ring-2 ring-blue-400 ring-inset z-10' : (!isContinuation ? (bookingsList.length > 0 ? (isLearnerTrackSession ? 'bg-amber-50' : 'bg-blue-100') : 'hover:bg-gray-50/50') : '')}
+    ${isDragOver && !isContinuation ? 'bg-blue-200 scale-[0.98] ring-2 ring-blue-400 ring-inset z-10' : (!isContinuation ? (bookingsList.length > 0 ? (isLearnerTrackSession ? 'bg-blue-50' : 'bg-blue-100') : 'hover:bg-gray-50/50') : '')}
     ${bookingsList.length > 0 && !isContinuation ? 'p-2 md:p-3' : 'p-1'}
   `;
 
@@ -164,7 +164,7 @@ const BookingCell = ({
     return (
       <div
         className={`w-[160px] md:w-[220px] flex-shrink-0 border-r border-gray-100 ${
-          isLearnerTrackSession ? 'bg-amber-50' : 'bg-blue-100'
+          isLearnerTrackSession ? 'bg-blue-50' : 'bg-blue-100'
         }`}
         style={{ height: `${SLOT_HEIGHT_PX}px` }}
       />
@@ -253,7 +253,7 @@ const BookingCell = ({
                         isUrgent
                           ? 'bg-red-50 border border-red-200 hover:border-red-400'
                           : isLearnerTrackSession
-                            ? 'bg-amber-50 border border-amber-200 hover:border-amber-400'
+                            ? 'bg-blue-50 border border-blue-200 hover:border-blue-400'
                             : 'bg-white border border-blue-100 hover:border-blue-300'
                       }`}
                       draggable={canEdit && !isLearnerTrackSession}
@@ -273,7 +273,7 @@ const BookingCell = ({
                             isUrgent
                               ? 'bg-red-600 text-white'
                               : isLearnerTrackSession
-                                ? 'bg-amber-600 text-white'
+                                ? 'bg-blue-600 text-white'
                                 : 'bg-blue-600 text-white'
                           }`}>
                             {bookingItem['Course ID']}
@@ -335,7 +335,7 @@ const BookingCell = ({
                         {bookingItem.courseStart && (
                              <div className={`text-xs flex items-center mt-1 ${
                                  isLearnerTrackSession
-                                   ? 'text-amber-700'
+                                   ? 'text-blue-700'
                                    : bookingItem.courseStatus === 'Live'
                                      ? 'text-blue-600'
                                      : (bookingItem.courseStatus === 'Completed' || bookingItem.courseStatus === 'Closed')
