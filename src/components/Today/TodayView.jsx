@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { format } from 'date-fns';
-import { MOCK_BOOKINGS, MOCK_COURSES } from '../../lib/mockData';
+import { learnerTrackService } from '../../lib/learnerTrackService';
 
-const TodayView = ({ rooms }) => {
+const isCancelled = (status) => String(status || '').trim().toLowerCase().includes('cancel');
+
+const TodayView = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,58 +18,34 @@ const TodayView = ({ rooms }) => {
     return () => window.clearInterval(intervalId);
   }, []);
 
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const data = await learnerTrackService.getSessions({ dateFrom: todayStr, dateTo: todayStr });
+
+      const enriched = (data || [])
+        .filter((s) => !isCancelled(s.BookingStatus))
+        .sort((a, b) => String(a.StartTime || '').localeCompare(String(b.StartTime || '')));
+
+      setRows(enriched);
+    } catch (e) {
+      setError(e?.message || 'Failed to load today classes');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const load = () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const today = new Date();
-        const todayStr = format(today, 'yyyy-MM-dd');
-
-        const courseBookings = MOCK_BOOKINGS.filter(b => b['Start date'] === todayStr && Boolean(b?.['Course ID']));
-        const courseIds = [...new Set(courseBookings.map(b => b['Course ID']).filter(Boolean))];
-
-        const courseMap = new Map(MOCK_COURSES.filter(c => courseIds.includes(c['Course ID'])).map(c => [c['Course ID'], c]));
-
-        const enriched = courseBookings
-          .map(b => {
-            const course = courseMap.get(b['Course ID']);
-            return {
-              ...b,
-              courseStatus: course?.Status || b.courseStatus
-            };
-          })
-          .filter(b => {
-            const status = String(b.courseStatus || '').trim().toLowerCase();
-            if (!status) return true;
-            return status !== 'cancelled' && status !== 'errors';
-          })
-          .sort((a, b) => String(a['Start time'] || '').localeCompare(String(b['Start time'] || '')));
-
-        setRows(enriched);
-      } catch (e) {
-        setError(e?.message || 'Failed to load today classes');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     load();
     const refreshId = window.setInterval(load, 5 * 60000);
 
     return () => {
       window.clearInterval(refreshId);
     };
-  }, []);
-
-  const roomMap = useMemo(() => {
-    const map = new Map();
-    (rooms || []).forEach(r => {
-      map.set(String(r.id), r.room_number || r.name);
-    });
-    return map;
-  }, [rooms]);
+  }, [load]);
 
   const getRoomShortLabel = (label) => {
     const str = String(label || '').trim();
@@ -95,7 +73,7 @@ const TodayView = ({ rooms }) => {
     const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
     return (rows || []).filter(r => {
-      const endTime = String(r?.['End time'] || '').trim();
+      const endTime = String(r?.EndTime || '').trim();
       const match = endTime.match(/^(\d{1,2}):(\d{2})/);
       if (!match) return true;
       const end = new Date(base);
@@ -149,29 +127,29 @@ const TodayView = ({ rooms }) => {
                 <div className="text-center">Room</div>
                 <div className="text-center">Start</div>
                 <div className="text-center">End</div>
-                <div>Course ID</div>
+                <div>Course</div>
                 <div>Class Name</div>
                 <div>Tutor</div>
               </div>
 
               {visibleRows.map((r, idx) => {
-                const roomLabel = roomMap.get(String(r['Room'])) || r.displayRoomName || r['Room'];
+                const roomLabel = r.local_room_number || r.RoomLabel;
                 const roomDisplay = getRoomShortLabel(roomLabel);
                 const roomIsNumeric = Boolean(String(roomDisplay).match(/^\d+$/));
 
                 return (
                   <div
-                    key={r.id || `${r['Course ID']}-${r['Start time']}-${r['Room']}-${idx}`}
+                    key={r.ID || `${r.CourseInstanceID}-${r.StartTime}-${idx}`}
                     className={`grid grid-cols-[minmax(70px,90px)_minmax(90px,120px)_minmax(90px,120px)_minmax(140px,200px)_minmax(700px,1fr)_minmax(160px,220px)] px-6 py-3 text-lg md:text-xl border-b border-gray-100 ${
                       idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                     }`}
                   >
                     <div className={`text-center text-gray-900 ${roomIsNumeric ? 'font-extrabold' : 'font-medium'}`}>{roomDisplay}</div>
-                    <div className="text-center font-medium text-gray-900">{r['Start time']}</div>
-                    <div className="text-center font-medium text-gray-900">{r['End time']}</div>
-                    <div className="text-gray-900 whitespace-nowrap">{r['Course ID']}</div>
-                    <div className="text-gray-900 whitespace-nowrap truncate">{r['Course Name']}</div>
-                    <div className="text-gray-900 whitespace-nowrap truncate">{r['Tutor']}</div>
+                    <div className="text-center font-medium text-gray-900">{r.StartTime}</div>
+                    <div className="text-center font-medium text-gray-900">{r.EndTime}</div>
+                    <div className="text-gray-900 whitespace-nowrap">{r.CourseShortLabel || r.CourseCode}</div>
+                    <div className="text-gray-900 whitespace-nowrap truncate">{r.CourseTitle}</div>
+                    <div className="text-gray-900 whitespace-nowrap truncate">{r.TutorLabel}</div>
                   </div>
                 );
               })}

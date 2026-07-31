@@ -594,7 +594,7 @@ function AppContent() {
               </div>
             }>
               {currentView === 'today' ? (
-                <TodayView rooms={rooms} />
+                <TodayView />
               ) : currentView === 'calendar' ? (
                 <CalendarGrid
                   bookings={bookings}
