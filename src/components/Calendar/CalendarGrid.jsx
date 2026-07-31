@@ -28,6 +28,7 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
         setSessionsError(null);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const data = await learnerTrackService.getSessions({ date: dateStr });
+        console.log('[CalendarGrid] sessions loaded for', dateStr, ':', data?.length || 0, data);
         if (!cancelled) setSessions(data || []);
       } catch (err) {
         if (!cancelled) setSessionsError(err.message || 'Failed to load sessions');
@@ -52,9 +53,9 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
     // Build room normalisation map  (room_number and id → room object)
     const roomMap = new Map();
     rooms.forEach(room => {
-      roomMap.set(String(room.id).toLowerCase(), room);
+      roomMap.set(String(room.id).toLowerCase().trim(), room);
       if (room.room_number) {
-        roomMap.set(String(room.room_number).toLowerCase(), room);
+        roomMap.set(String(room.room_number).toLowerCase().trim(), room);
       }
     });
 
@@ -64,8 +65,21 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
       const raw = String(roomLabel || '').trim().toLowerCase();
       if (!raw) return null;
       if (roomMap.has(raw)) return roomMap.get(raw);
-      const roomNum = raw.replace(/room\s*/i, '');
+
+      // Normalise "Room 3" <-> "3" in both directions
+      const roomNum = raw.replace(/^room\s*/i, '');
       if (roomMap.has(roomNum)) return roomMap.get(roomNum);
+      if (roomMap.has(`room ${raw}`)) return roomMap.get(`room ${raw}`);
+
+      // Fallback numeric match (e.g. "3" matches any room number containing 3)
+      const rawDigits = raw.match(/\d+/)?.[0];
+      if (rawDigits) {
+        for (const [key, room] of roomMap.entries()) {
+          const keyDigits = key.match(/\d+/)?.[0];
+          if (keyDigits === rawDigits) return room;
+        }
+      }
+
       return null;
     };
 
@@ -107,12 +121,14 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
     });
 
     // --- Process Learner Track sessions ---
+    let matchedSessions = 0;
     (sessions || []).forEach(session => {
       const status = String(session.BookingStatus || '').trim().toLowerCase();
       if (status.includes('cancel')) return;
 
       const room = resolveRoom(session.local_room_number || session.RoomLabel);
       if (!room) return;
+      matchedSessions++;
 
       const displayRoomName = room.room_number
         ? (String(room.room_number).toLowerCase().includes('room') ? room.room_number : `Room ${room.room_number}`)
@@ -138,6 +154,7 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
       addToLookup(processedSession, session.StartTime, session.EndTime);
     });
 
+    console.log('[CalendarGrid] lookup: rooms with tiles =', Object.keys(lookup).length, 'matched sessions =', matchedSessions, 'total rooms =', rooms.length);
     return lookup;
   }, [bookings, rooms, sessions]);
 
@@ -298,7 +315,7 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
                           key={`${room.id}-${slotTime}`}
                           roomId={room.id}
                           sessionType={slotTime}
-                          booking={undefined}
+                          booking={slotData.booking}
                           bookings={undefined}
                           onCellClick={handleCellClick}
                           onDrop={handleBookingDrop}
