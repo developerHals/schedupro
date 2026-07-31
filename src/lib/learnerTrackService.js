@@ -37,4 +37,7 @@ export const learnerTrackService = {
   patchCourseOverride: (body) => request('courses', { method: 'PATCH', body }),
   getSessions: (params) => request('sessions', { params }),
   patchSessionOverride: (body) => request('sessions', { method: 'PATCH', body }),
+  // Manually triggers the same sync logic the cron worker runs on a schedule.
+  triggerSync: (academicYear) =>
+    request(`sync${academicYear ? `?academicYear=${academicYear}` : ''}`, { method: 'POST', body: {} }),
 };

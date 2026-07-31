@@ -1,16 +1,11 @@
-import { requireUser, requireRoles } from '../auth/_helpers.js';
+import { requireRoles } from '../auth/_helpers.js';
 
+// GET is intentionally public (read-only, non-sensitive course listing).
+// PATCH (local overrides) below still requires an authenticated staff role.
 export async function onRequestGet(context) {
   const { request, env } = context;
   const db = env.schedupro_db;
   if (!db) return new Response('Database not configured', { status: 500 });
-
-  try {
-    await requireUser(request, env);
-  } catch (err) {
-    const status = err.message === 'Account inactive' ? 403 : 401;
-    return Response.json({ data: null, error: err.message }, { status });
-  }
 
   const url = new URL(request.url);
   const academicYear = url.searchParams.get('academicYear');

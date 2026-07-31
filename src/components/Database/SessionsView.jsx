@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { FiSearch, FiDownload, FiRefreshCw, FiClock, FiBell, FiCalendar } from 'react-icons/fi';
+import { FiSearch, FiDownload, FiRefreshCw, FiClock, FiBell, FiCalendar, FiUploadCloud } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import SafeIcon from '../../common/SafeIcon';
 import { dataService } from '../../lib/dataService';
 import { learnerTrackService } from '../../lib/learnerTrackService';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Editable inline text cell for local override fields (notes / approval status).
 const OverrideTextCell = ({ value, placeholder, onSave }) => {
@@ -88,9 +89,11 @@ const formatDate = (dateStr) => {
 };
 
 const SessionsView = ({ onRefresh }) => {
+  const { isAdmin } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   const [searchInput, setSearchInput] = useState('');
   const [tutorInput, setTutorInput] = useState('');
@@ -175,6 +178,21 @@ const SessionsView = ({ onRefresh }) => {
     );
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const result = await learnerTrackService.triggerSync();
+      toast.success(
+        `Sync complete: ${result.coursesSynced} courses, ${result.sessionsSynced} sessions updated`
+      );
+      await fetchSessions();
+    } catch (err) {
+      toast.error(`Sync failed: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const exportToCSV = () => {
     const headers = ['Course', 'Date', 'Day', 'Start', 'End', 'Term', 'Location', 'Room', 'Tutor', 'Booking Status', 'Local Notes', 'Local Approval'];
     const csvContent = [
@@ -223,6 +241,17 @@ const SessionsView = ({ onRefresh }) => {
             <span className="text-xs text-gray-400">Synced from Learner Track</span>
           </div>
           <div className="flex items-center gap-2">
+            {isAdmin() && (
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                title="Manually pull the latest data from Learner Track now, instead of waiting for the scheduled sync"
+              >
+                <FiUploadCloud className={`h-4 w-4 mr-2 ${syncing ? 'animate-pulse' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+            )}
             <button
               onClick={exportToCSV}
               className="flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
