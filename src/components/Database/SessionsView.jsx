@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FiSearch, FiDownload, FiRefreshCw, FiClock, FiBell, FiCalendar, FiUploadCloud } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -6,44 +6,6 @@ import SafeIcon from '../../common/SafeIcon';
 import { dataService } from '../../lib/dataService';
 import { learnerTrackService } from '../../lib/learnerTrackService';
 import { useAuth } from '../../contexts/AuthContext';
-
-// Editable inline text cell for local override fields (notes / approval status).
-const OverrideTextCell = ({ value, placeholder, onSave }) => {
-  const [text, setText] = useState(value || '');
-  const [saving, setSaving] = useState(false);
-  const initial = useRef(value || '');
-
-  useEffect(() => {
-    setText(value || '');
-    initial.current = value || '';
-  }, [value]);
-
-  const handleBlur = async () => {
-    if (text === initial.current) return;
-    setSaving(true);
-    try {
-      await onSave(text);
-      initial.current = text;
-    } catch (err) {
-      toast.error(`Failed to save: ${err.message}`);
-      setText(initial.current);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <input
-      type="text"
-      value={text}
-      placeholder={placeholder}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={handleBlur}
-      disabled={saving}
-      className="w-full min-w-[130px] px-2 py-1 text-sm border border-transparent rounded-md hover:border-gray-200 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400/30 bg-transparent disabled:opacity-50"
-    />
-  );
-};
 
 // Editable room-override dropdown, sourced from the internal `rooms` table.
 const RoomOverrideCell = ({ session, rooms, onSave }) => {
@@ -97,13 +59,13 @@ const SessionsView = ({ onRefresh }) => {
 
   const [searchInput, setSearchInput] = useState('');
   const [tutorInput, setTutorInput] = useState('');
-  const [dateFromInput, setDateFromInput] = useState('');
-  const [dateToInput, setDateToInput] = useState('');
+  const [dateInput, setDateInput] = useState('');
+  const [dayInput, setDayInput] = useState('');
 
   const [searchFilter, setSearchFilter] = useState('');
   const [tutorFilter, setTutorFilter] = useState('');
-  const [dateFromFilter, setDateFromFilter] = useState('');
-  const [dateToFilter, setDateToFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [dayFilter, setDayFilter] = useState('');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
@@ -114,8 +76,8 @@ const SessionsView = ({ onRefresh }) => {
       const data = await learnerTrackService.getSessions({
         search: searchFilter || undefined,
         tutor: tutorFilter || undefined,
-        dateFrom: dateFromFilter || undefined,
-        dateTo: dateToFilter || undefined,
+        date: dateFilter || undefined,
+        day: dayFilter || undefined,
       });
       setSessions(data || []);
     } catch (error) {
@@ -124,7 +86,7 @@ const SessionsView = ({ onRefresh }) => {
     } finally {
       setLoading(false);
     }
-  }, [searchFilter, tutorFilter, dateFromFilter, dateToFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchFilter, tutorFilter, dateFilter, dayFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchSessions();
@@ -138,17 +100,14 @@ const SessionsView = ({ onRefresh }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchFilter, tutorFilter, dateFromFilter, dateToFilter]);
+  }, [searchFilter, tutorFilter, dateFilter, dayFilter]);
 
   const handleKeyDown = (e, filterType) => {
     if (e.key !== 'Enter') return;
     if (filterType === 'search') setSearchFilter(searchInput);
     if (filterType === 'tutor') setTutorFilter(tutorInput);
-  };
-
-  const applyDateFilters = () => {
-    setDateFromFilter(dateFromInput);
-    setDateToFilter(dateToInput);
+    if (filterType === 'date') setDateFilter(dateInput);
+    if (filterType === 'day') setDayFilter(dayInput);
   };
 
   const paginatedSessions = useMemo(() => {
@@ -169,8 +128,6 @@ const SessionsView = ({ onRefresh }) => {
           ? {
               ...s,
               local_room_id: updated.local_room_id,
-              local_notes: updated.local_notes,
-              local_approval_status: updated.local_approval_status,
               local_room_number: rooms.find((r) => r.id === updated.local_room_id)?.room_number || null,
             }
           : s
@@ -194,11 +151,12 @@ const SessionsView = ({ onRefresh }) => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Course', 'Date', 'Day', 'Start', 'End', 'Term', 'Location', 'Room', 'Tutor', 'Booking Status', 'Local Notes', 'Local Approval'];
+    const headers = ['Course', 'Course Title', 'Date', 'Day', 'Start', 'End', 'Term', 'Location', 'Room', 'Tutor', 'Booking Status'];
     const csvContent = [
       headers.join(','),
       ...sessions.map((s) =>
         [
+          `"${(s.CourseShortLabel || s.CourseCode || '').replace(/"/g, '""')}"`,
           `"${(s.CourseTitle || '').replace(/"/g, '""')}"`,
           formatDate(s.Date),
           s.DayOfWeek || '',
@@ -209,8 +167,6 @@ const SessionsView = ({ onRefresh }) => {
           s.local_room_number || s.RoomLabel || '',
           `"${(s.TutorLabel || '').replace(/"/g, '""')}"`,
           s.BookingStatus || '',
-          `"${(s.local_notes || '').replace(/"/g, '""')}"`,
-          s.local_approval_status || '',
         ].join(',')
       ),
     ].join('\n');
@@ -310,29 +266,31 @@ const SessionsView = ({ onRefresh }) => {
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <input
-            type="date"
-            value={dateFromInput}
-            onChange={(e) => setDateFromInput(e.target.value)}
-            onBlur={applyDateFilters}
+            type="text"
+            placeholder="Date (YYYY-MM-DD)... (Enter)"
+            value={dateInput}
+            onChange={(e) => setDateInput(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, 'date')}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <input
-            type="date"
-            value={dateToInput}
-            onChange={(e) => setDateToInput(e.target.value)}
-            onBlur={applyDateFilters}
+            type="text"
+            placeholder="Day (e.g. Monday)... (Enter)"
+            value={dayInput}
+            onChange={(e) => setDayInput(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, 'day')}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <button
             onClick={() => {
               setSearchInput('');
               setTutorInput('');
-              setDateFromInput('');
-              setDateToInput('');
+              setDateInput('');
+              setDayInput('');
               setSearchFilter('');
               setTutorFilter('');
-              setDateFromFilter('');
-              setDateToFilter('');
+              setDateFilter('');
+              setDayFilter('');
             }}
             className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
           >
@@ -347,62 +305,45 @@ const SessionsView = ({ onRefresh }) => {
 
       <div className="flex-1 overflow-auto">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-50 sticky top-0 z-10">
+          <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
-              {['Course', 'Date', 'Day', 'Start', 'End', 'Term', 'Location', 'Room', 'Tutor', 'Booking Status'].map((header) => (
-                <th key={header} className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap border-b border-gray-200">
+              {['Course', 'Course Title', 'Date', 'Day', 'Start', 'End', 'Term', 'Location', 'Room', 'Tutor', 'Booking Status'].map((header) => (
+                <th key={header} className="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap border-b border-gray-200">
                   {header}
                 </th>
               ))}
-              <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap border-b border-gray-200">
-                Local Notes
-              </th>
-              <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap border-b border-gray-200">
-                Local Approval
-              </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-100">
             {paginatedSessions.length > 0 ? (
-              paginatedSessions.map((session) => (
-                <tr key={session.ID} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900" title={session.CourseLabel}>
-                    {session.CourseShortLabel || session.CourseTitle}
+              paginatedSessions.map((session, idx) => (
+                <tr key={session.ID} className={`transition-colors hover:bg-blue-50/40 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900" title={session.CourseLabel}>
+                    {session.CourseShortLabel || session.CourseCode}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(session.Date)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.DayOfWeek}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.StartTime}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.EndTime}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.Term}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.LocationLabel}</td>
-                  <td className="px-6 py-2 text-sm">
+                  <td className="px-6 py-3 text-sm text-gray-700 max-w-[320px] truncate" title={session.CourseTitle}>
+                    {session.CourseTitle}
+                  </td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 tabular-nums">{formatDate(session.Date)}</td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{session.DayOfWeek}</td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 tabular-nums">{session.StartTime}</td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 tabular-nums">{session.EndTime}</td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{session.Term}</td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{session.LocationLabel}</td>
+                  <td className="px-4 py-1.5 text-sm">
                     <RoomOverrideCell
                       session={session}
                       rooms={rooms}
                       onSave={(roomId) => handleSaveOverride(session, { local_room_id: roomId })}
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.TutorLabel}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{session.BookingStatus}</td>
-                  <td className="px-6 py-2 text-sm">
-                    <OverrideTextCell
-                      value={session.local_notes}
-                      placeholder="Add note..."
-                      onSave={(val) => handleSaveOverride(session, { local_notes: val })}
-                    />
-                  </td>
-                  <td className="px-6 py-2 text-sm">
-                    <OverrideTextCell
-                      value={session.local_approval_status}
-                      placeholder="Add status..."
-                      onSave={(val) => handleSaveOverride(session, { local_approval_status: val })}
-                    />
-                  </td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{session.TutorLabel}</td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{session.BookingStatus}</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={12} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={11} className="px-6 py-12 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">
                     <div className="bg-gray-50 p-4 rounded-full mb-3">
                       <SafeIcon icon={FiCalendar} className="h-6 w-6 text-gray-400" />

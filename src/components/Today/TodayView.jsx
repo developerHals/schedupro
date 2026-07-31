@@ -24,7 +24,7 @@ const TodayView = () => {
       setError(null);
 
       const todayStr = format(new Date(), 'yyyy-MM-dd');
-      const data = await learnerTrackService.getSessions({ dateFrom: todayStr, dateTo: todayStr });
+      const data = await learnerTrackService.getSessions({ date: todayStr });
 
       const enriched = (data || [])
         .filter((s) => !isCancelled(s.BookingStatus))

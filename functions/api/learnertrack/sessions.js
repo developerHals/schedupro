@@ -10,11 +10,15 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   const courseInstanceId = url.searchParams.get('courseInstanceId');
   const academicYear = url.searchParams.get('academicYear');
+  const date = url.searchParams.get('date');
   const dateFrom = url.searchParams.get('dateFrom');
   const dateTo = url.searchParams.get('dateTo');
+  const day = url.searchParams.get('day');
   const tutor = url.searchParams.get('tutor');
   const search = url.searchParams.get('search');
 
+  // "Date" may be stored with a time component depending on what Learner Track
+  // returns, so compare only the first 10 chars (YYYY-MM-DD) for exact/range matches.
   const conditions = [];
   const values = [];
   if (courseInstanceId) {
@@ -25,13 +29,21 @@ export async function onRequestGet(context) {
     conditions.push(`s."AcademicYear" = ?${values.length + 1}`);
     values.push(academicYear);
   }
+  if (date) {
+    conditions.push(`substr(s."Date", 1, 10) = ?${values.length + 1}`);
+    values.push(date);
+  }
   if (dateFrom) {
-    conditions.push(`s."Date" >= ?${values.length + 1}`);
+    conditions.push(`substr(s."Date", 1, 10) >= ?${values.length + 1}`);
     values.push(dateFrom);
   }
   if (dateTo) {
-    conditions.push(`s."Date" <= ?${values.length + 1}`);
+    conditions.push(`substr(s."Date", 1, 10) <= ?${values.length + 1}`);
     values.push(dateTo);
+  }
+  if (day) {
+    conditions.push(`s."DayOfWeek" LIKE ?${values.length + 1}`);
+    values.push(`%${day}%`);
   }
   if (tutor) {
     conditions.push(`s."TutorLabel" LIKE ?${values.length + 1}`);
