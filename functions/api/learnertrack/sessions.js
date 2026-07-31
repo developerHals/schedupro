@@ -16,6 +16,7 @@ export async function onRequestGet(context) {
   const day = url.searchParams.get('day');
   const tutor = url.searchParams.get('tutor');
   const search = url.searchParams.get('search');
+  const room = url.searchParams.get('room');
 
   // "Date" may be stored with a time component depending on what Learner Track
   // returns, so compare only the first 10 chars (YYYY-MM-DD) for exact/range matches.
@@ -52,6 +53,10 @@ export async function onRequestGet(context) {
   if (search) {
     conditions.push(`(s."CourseTitle" LIKE ?${values.length + 1} OR s."CourseLabel" LIKE ?${values.length + 1})`);
     values.push(`%${search}%`);
+  }
+  if (room) {
+    conditions.push(`(s."RoomLabel" LIKE ?${values.length + 1} OR r.room_number LIKE ?${values.length + 2})`);
+    values.push(`%${room}%`, `%${room}%`);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';

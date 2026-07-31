@@ -57,15 +57,19 @@ const SessionsView = ({ onRefresh }) => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+
   const [searchInput, setSearchInput] = useState('');
   const [tutorInput, setTutorInput] = useState('');
-  const [dateInput, setDateInput] = useState('');
+  const [dateInput, setDateInput] = useState(todayStr);
   const [dayInput, setDayInput] = useState('');
+  const [roomInput, setRoomInput] = useState('');
 
   const [searchFilter, setSearchFilter] = useState('');
   const [tutorFilter, setTutorFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState(todayStr);
   const [dayFilter, setDayFilter] = useState('');
+  const [roomFilter, setRoomFilter] = useState('');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
@@ -78,6 +82,7 @@ const SessionsView = ({ onRefresh }) => {
         tutor: tutorFilter || undefined,
         date: dateFilter || undefined,
         day: dayFilter || undefined,
+        room: roomFilter || undefined,
       });
       setSessions(data || []);
     } catch (error) {
@@ -86,7 +91,7 @@ const SessionsView = ({ onRefresh }) => {
     } finally {
       setLoading(false);
     }
-  }, [searchFilter, tutorFilter, dateFilter, dayFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchFilter, tutorFilter, dateFilter, dayFilter, roomFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchSessions();
@@ -100,7 +105,7 @@ const SessionsView = ({ onRefresh }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchFilter, tutorFilter, dateFilter, dayFilter]);
+  }, [searchFilter, tutorFilter, dateFilter, dayFilter, roomFilter]);
 
   const handleKeyDown = (e, filterType) => {
     if (e.key !== 'Enter') return;
@@ -108,12 +113,22 @@ const SessionsView = ({ onRefresh }) => {
     if (filterType === 'tutor') setTutorFilter(tutorInput);
     if (filterType === 'date') setDateFilter(dateInput);
     if (filterType === 'day') setDayFilter(dayInput);
+    if (filterType === 'room') setRoomFilter(roomInput);
   };
+
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => {
+      const dateA = String(a.Date || '').slice(0, 10);
+      const dateB = String(b.Date || '').slice(0, 10);
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      return String(a.StartTime || '').padStart(5, '0').localeCompare(String(b.StartTime || '').padStart(5, '0'));
+    });
+  }, [sessions]);
 
   const paginatedSessions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return sessions.slice(startIndex, startIndex + itemsPerPage);
-  }, [sessions, currentPage, itemsPerPage]);
+    return sortedSessions.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedSessions, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(sessions.length / itemsPerPage);
 
@@ -245,7 +260,7 @@ const SessionsView = ({ onRefresh }) => {
       </div>
 
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
           <div className="relative">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
@@ -265,14 +280,16 @@ const SessionsView = ({ onRefresh }) => {
             onKeyDown={(e) => handleKeyDown(e, 'tutor')}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
-          <input
-            type="text"
-            placeholder="Date (YYYY-MM-DD)... (Enter)"
-            value={dateInput}
-            onChange={(e) => setDateInput(e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, 'date')}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
+            <input
+              type="date"
+              value={dateInput}
+              onChange={(e) => setDateInput(e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, 'date')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
           <input
             type="text"
             placeholder="Day (e.g. Monday)... (Enter)"
@@ -281,16 +298,26 @@ const SessionsView = ({ onRefresh }) => {
             onKeyDown={(e) => handleKeyDown(e, 'day')}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+          <input
+            type="text"
+            placeholder="Room... (Enter)"
+            value={roomInput}
+            onChange={(e) => setRoomInput(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, 'room')}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
           <button
             onClick={() => {
               setSearchInput('');
               setTutorInput('');
-              setDateInput('');
+              setDateInput(todayStr);
               setDayInput('');
+              setRoomInput('');
               setSearchFilter('');
               setTutorFilter('');
-              setDateFilter('');
+              setDateFilter(todayStr);
               setDayFilter('');
+              setRoomFilter('');
             }}
             className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
           >

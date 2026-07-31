@@ -135,10 +135,12 @@ const BookingCell = ({
   // of a tile that started in a previous slot row — render nothing interactive.
   const isContinuation = isFirstSlot === false;
 
+  const isLearnerTrackSession = bookingsList.some(b => b.isLearnerTrackSession);
+
   const cellClasses = `
     w-[160px] md:w-[220px] flex-shrink-0 border-r border-gray-100 relative transition-all duration-200
-    ${canEdit && !isContinuation ? 'cursor-pointer' : ''}
-    ${isDragOver && !isContinuation ? 'bg-blue-200 scale-[0.98] ring-2 ring-blue-400 ring-inset z-10' : (!isContinuation ? (bookingsList.length > 0 ? 'bg-blue-100' : 'hover:bg-gray-50/50') : '')}
+    ${canEdit && !isContinuation && !isLearnerTrackSession ? 'cursor-pointer' : ''}
+    ${isDragOver && !isContinuation ? 'bg-blue-200 scale-[0.98] ring-2 ring-blue-400 ring-inset z-10' : (!isContinuation ? (bookingsList.length > 0 ? (isLearnerTrackSession ? 'bg-amber-50' : 'bg-blue-100') : 'hover:bg-gray-50/50') : '')}
     ${bookingsList.length > 0 && !isContinuation ? 'p-2 md:p-3' : 'p-1'}
   `;
 
@@ -156,11 +158,14 @@ const BookingCell = ({
     }
   };
 
-  // Silent continuation cell — same light-blue background as the first slot, no interactions
+  // Silent continuation cell — same background as the first slot, no interactions
   if (isContinuation) {
+    const isLearnerTrackSession = bookingsList[0]?.isLearnerTrackSession;
     return (
       <div
-        className="w-[160px] md:w-[220px] flex-shrink-0 border-r border-gray-100 bg-blue-100"
+        className={`w-[160px] md:w-[220px] flex-shrink-0 border-r border-gray-100 ${
+          isLearnerTrackSession ? 'bg-amber-50' : 'bg-blue-100'
+        }`}
         style={{ height: `${SLOT_HEIGHT_PX}px` }}
       />
     );
@@ -228,17 +233,18 @@ const BookingCell = ({
         <div className="flex flex-col gap-2 h-full">
             {bookingsList.map((bookingItem) => {
                 // Date Display Logic
+                const isLearnerTrackSession = bookingItem.isLearnerTrackSession;
                 const isCourse = !!bookingItem['Course ID'] || !!bookingItem.courseStart;
                 const startDate = bookingItem.courseStart || bookingItem['Start date'];
                 const endDate = bookingItem.courseEnd || bookingItem['End date'];
                 const showRange = startDate !== endDate;
 
                 // Clean notes to remove schedule summary
-                const cleanNotes = bookingItem['Notes'] 
-                    ? bookingItem['Notes'].split('-- Schedule Summary --')[0].trim() 
+                const cleanNotes = bookingItem['Notes']
+                    ? bookingItem['Notes'].split('-- Schedule Summary --')[0].trim()
                     : '';
 
-                const isUrgent = isBookingUrgent(bookingItem);
+                const isUrgent = !isLearnerTrackSession && isBookingUrgent(bookingItem);
 
                 return (
                     <div
@@ -246,11 +252,14 @@ const BookingCell = ({
                       className={`shadow-sm rounded-xl p-3 relative group/card hover:shadow-md transition-all duration-200 flex flex-col gap-2 ${
                         isUrgent
                           ? 'bg-red-50 border border-red-200 hover:border-red-400'
-                          : 'bg-white border border-blue-100 hover:border-blue-300'
+                          : isLearnerTrackSession
+                            ? 'bg-amber-50 border border-amber-200 hover:border-amber-400'
+                            : 'bg-white border border-blue-100 hover:border-blue-300'
                       }`}
-                      draggable={canEdit}
+                      draggable={canEdit && !isLearnerTrackSession}
                       onDragStart={(e) => handleDragStart(e, bookingItem)}
                       onClick={(e) => {
+                        if (isLearnerTrackSession) return;
                         // Check ownership-based permissions for this specific booking
                         if (canEdit && (isSuperuser() || isAdmin() ? canEditBooking(bookingItem) : true)) {
                           e.stopPropagation();
@@ -263,11 +272,13 @@ const BookingCell = ({
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter ${
                             isUrgent
                               ? 'bg-red-600 text-white'
-                              : 'bg-blue-600 text-white'
+                              : isLearnerTrackSession
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-blue-600 text-white'
                           }`}>
                             {bookingItem['Course ID']}
                           </span>
-                          {canEdit && (
+                          {canEdit && !isLearnerTrackSession && (
                             <button
                               onClick={(e) => handleQuickCopy(e, bookingItem['Course ID'])}
                               className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded hover:bg-blue-50"
@@ -278,7 +289,7 @@ const BookingCell = ({
                           )}
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-all">
-                          {canEdit && onDuplicate && (
+                          {canEdit && !isLearnerTrackSession && onDuplicate && (
                             <button
                               onClick={(e) => { e.stopPropagation(); onDuplicate(bookingItem); }}
                               className="p-1.5 rounded-full bg-green-50 text-green-500 hover:bg-green-100 hover:text-green-600 transition-all duration-200 shadow-sm"
@@ -288,7 +299,7 @@ const BookingCell = ({
                             </button>
                           )}
                           {/* Delete button - only show if user can delete this specific booking */}
-                          {canEdit && canDeleteBooking(bookingItem) && (
+                          {canEdit && !isLearnerTrackSession && canDeleteBooking(bookingItem) && (
                             <button
                               onClick={(e) => handleDelete(e, bookingItem.id)}
                               className="p-1.5 rounded-full bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-all duration-200 shadow-sm"
@@ -323,9 +334,13 @@ const BookingCell = ({
                         {/* Course Status: Below Tutor */}
                         {bookingItem.courseStart && (
                              <div className={`text-xs flex items-center mt-1 ${
-                                 bookingItem.courseStatus === 'Live' ? 'text-blue-600' :
-                                 (bookingItem.courseStatus === 'Completed' || bookingItem.courseStatus === 'Closed') ? 'text-green-600' :
-                                 'text-red-600'
+                                 isLearnerTrackSession
+                                   ? 'text-amber-700'
+                                   : bookingItem.courseStatus === 'Live'
+                                     ? 'text-blue-600'
+                                     : (bookingItem.courseStatus === 'Completed' || bookingItem.courseStatus === 'Closed')
+                                       ? 'text-green-600'
+                                       : 'text-red-600'
                              }`}>
                                  <span className="font-medium mr-1 text-gray-500">Status:</span>
                                  <span className="font-semibold truncate" title={bookingItem.courseStatus}>
@@ -342,7 +357,7 @@ const BookingCell = ({
                         )}
 
                         {/* Book Room Status: Below Notes */}
-                        {!bookingItem.courseStart && (
+                        {!bookingItem.courseStart && !isLearnerTrackSession && (
                              <div className={`text-xs flex items-center mt-1 ${
                                  bookingItem['Lesson Number'] === 'Approved' ? 'text-green-600' : 'text-red-600'
                              }`}>
@@ -352,7 +367,7 @@ const BookingCell = ({
                                  </span>
                              </div>
                         )}
-                        
+
                         <div className="text-[10px] text-gray-400 border-t border-gray-100 pt-1.5 mt-0.5 flex items-center justify-between">
                            <span>{isCourse && showRange ? 'Duration:' : 'Date:'}</span>
                            <span className="font-medium text-gray-500">

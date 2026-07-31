@@ -28,7 +28,12 @@ const TodayView = () => {
 
       const enriched = (data || [])
         .filter((s) => !isCancelled(s.BookingStatus))
-        .sort((a, b) => String(a.StartTime || '').localeCompare(String(b.StartTime || '')));
+        .sort((a, b) => {
+          const dateA = String(a.Date || '').slice(0, 10);
+          const dateB = String(b.Date || '').slice(0, 10);
+          if (dateA !== dateB) return dateA.localeCompare(dateB);
+          return String(a.StartTime || '').padStart(5, '0').localeCompare(String(b.StartTime || '').padStart(5, '0'));
+        });
 
       setRows(enriched);
     } catch (e) {

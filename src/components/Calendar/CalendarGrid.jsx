@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as FiIcons from 'react-icons/fi';
 const { FiPlus, FiRefreshCw } = FiIcons;
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,16 +7,35 @@ import AddRoomModal from '../Modals/AddRoomModal';
 import { format } from 'date-fns';
 import SafeIcon from '../../common/SafeIcon';
 import { ALL_SLOTS, slotsBetween, SLOT_HEIGHT_PX } from '../../utils/timeSlots';
+import { learnerTrackService } from '../../lib/learnerTrackService';
 
 // Statuses that should NOT appear on the grid (Hidden = room is freed)
 const HIDDEN_STATUSES = new Set(['Not started', 'Incomplete', 'Cancelled', 'Error']);
 
 const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookingDelete, getAvailableRooms, onEditBooking, onNewBooking, onNewCourse, onDuplicate, onRefresh }) => {
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [sessionsError, setSessionsError] = useState(null);
   const { canEditBookings } = useAuth();
   const headerScrollRef = useRef(null);
   const bodyScrollRef = useRef(null);
   const syncLockRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadSessions = async () => {
+      try {
+        setSessionsError(null);
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const data = await learnerTrackService.getSessions({ date: dateStr });
+        if (!cancelled) setSessions(data || []);
+      } catch (err) {
+        if (!cancelled) setSessionsError(err.message || 'Failed to load sessions');
+      }
+    };
+    loadSessions();
+    return () => { cancelled = true; };
+  }, [selectedDate]);
 
 
   /**
@@ -28,7 +47,6 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
    *   - other slots → { booking, isFirstSlot: false, slotSpan: 1 }  (continuation)
    */
   const bookingsLookup = useMemo(() => {
-    if (!Array.isArray(bookings)) return {};
     if (!Array.isArray(rooms)) return {};
 
     // Build room normalisation map  (room_number and id → room object)
@@ -42,50 +60,89 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
 
     const lookup = {}; // { roomId: { slotTime: { booking, isFirstSlot, slotSpan } } }
 
-    bookings.forEach(booking => {
-      // --- Status filter ---
-      const status = booking.courseStatus || booking.Status || booking['Status'] || '';
-      if (HIDDEN_STATUSES.has(status)) return;
+    const resolveRoom = (roomLabel) => {
+      const raw = String(roomLabel || '').trim().toLowerCase();
+      if (!raw) return null;
+      if (roomMap.has(raw)) return roomMap.get(raw);
+      const roomNum = raw.replace(/room\s*/i, '');
+      if (roomMap.has(roomNum)) return roomMap.get(roomNum);
+      return null;
+    };
 
-      // --- Resolve room ---
-      let room = null;
-      const bookingRoom = String(booking['Room'] || '').trim().toLowerCase();
-      if (roomMap.has(bookingRoom)) {
-        room = roomMap.get(bookingRoom);
-      } else {
-        const roomNum = bookingRoom.replace(/room\s*/i, '');
-        if (roomMap.has(roomNum)) room = roomMap.get(roomNum);
-      }
-      if (!room) return; // skip if room not in current list
-
-      const normalizedRoomId = room.id;
-      const displayRoomName = room.room_number
-        ? (String(room.room_number).toLowerCase().includes('room') ? room.room_number : `Room ${room.room_number}`)
-        : room.name;
-
-      const processedBooking = { ...booking, displayRoomName, _normalizedRoomId: normalizedRoomId };
-
-      // --- Compute occupied slots ---
-      const slots = slotsBetween(booking['Start time'], booking['End time']);
+    const addToLookup = (item, startTime, endTime) => {
+      const slots = slotsBetween(startTime, endTime);
       if (slots.length === 0) return;
-
+      const normalizedRoomId = item._normalizedRoomId;
       if (!lookup[normalizedRoomId]) lookup[normalizedRoomId] = {};
-
       slots.forEach((slotTime, idx) => {
-        // Don't overwrite a tile that already claimed this slot
+        // Don't overwrite a tile that already claimed this slot (bookings take priority over sessions)
         if (lookup[normalizedRoomId][slotTime]) return;
         lookup[normalizedRoomId][slotTime] = {
-          booking: processedBooking,
+          booking: item,
           isFirstSlot: idx === 0,
           slotSpan: idx === 0 ? slots.length : 1,
         };
       });
+    };
+
+    // --- Process internal bookings ---
+    (bookings || []).forEach(booking => {
+      const status = booking.courseStatus || booking.Status || booking['Status'] || '';
+      if (HIDDEN_STATUSES.has(status)) return;
+
+      const room = resolveRoom(booking['Room']);
+      if (!room) return;
+
+      const displayRoomName = room.room_number
+        ? (String(room.room_number).toLowerCase().includes('room') ? room.room_number : `Room ${room.room_number}`)
+        : room.name;
+
+      const processedBooking = {
+        ...booking,
+        displayRoomName,
+        _normalizedRoomId: room.id,
+      };
+
+      addToLookup(processedBooking, booking['Start time'], booking['End time']);
+    });
+
+    // --- Process Learner Track sessions ---
+    (sessions || []).forEach(session => {
+      const status = String(session.BookingStatus || '').trim().toLowerCase();
+      if (status.includes('cancel')) return;
+
+      const room = resolveRoom(session.local_room_number || session.RoomLabel);
+      if (!room) return;
+
+      const displayRoomName = room.room_number
+        ? (String(room.room_number).toLowerCase().includes('room') ? room.room_number : `Room ${room.room_number}`)
+        : room.name;
+
+      const processedSession = {
+        id: `lt-${session.ID}`,
+        isLearnerTrackSession: true,
+        'Course ID': session.CourseShortLabel || session.CourseCode || 'LT',
+        'Course Name': session.CourseTitle || 'Learner Track Session',
+        'Tutor': session.TutorLabel || '',
+        'Start time': session.StartTime,
+        'End time': session.EndTime,
+        'Room': session.local_room_number || session.RoomLabel,
+        'BookingStatus': session.BookingStatus || '',
+        courseStatus: session.BookingStatus || '',
+        courseStart: session.Date,
+        courseEnd: session.Date,
+        displayRoomName,
+        _normalizedRoomId: room.id,
+      };
+
+      addToLookup(processedSession, session.StartTime, session.EndTime);
     });
 
     return lookup;
-  }, [bookings, rooms]);
+  }, [bookings, rooms, sessions]);
 
   const handleCellClick = useCallback((roomId, sessionType, booking) => {
+    if (booking?.isLearnerTrackSession) return;
     if (!canEditBookings()) return;
     if (booking) {
       if (onEditBooking) onEditBooking(booking);
@@ -123,6 +180,11 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
             {format(selectedDate, 'EEEE, MMMM d, yyyy')}
           </h2>
           <div className="flex items-center gap-2 md:gap-4 w-full md:w-auto justify-between md:justify-end">
+            {sessionsError && (
+              <div className="text-xs text-red-600 font-medium" title={sessionsError}>
+                Sessions error
+              </div>
+            )}
             <div className="text-xs md:text-sm text-gray-500 font-medium">
               {rooms.length} Rooms Available
             </div>
