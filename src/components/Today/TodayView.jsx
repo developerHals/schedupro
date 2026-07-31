@@ -74,8 +74,18 @@ const TodayView = () => {
   };
 
   const visibleRows = useMemo(() => {
-    return rows || [];
-  }, [rows]);
+    const today = new Date();
+    const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    return (rows || []).filter(r => {
+      const endTime = String(r?.EndTime || '').trim();
+      const match = endTime.match(/^(\d{1,2}):(\d{2})/);
+      if (!match) return true;
+      const end = new Date(base);
+      end.setHours(Number(match[1]), Number(match[2]), 0, 0);
+      return end.getTime() > now.getTime();
+    });
+  }, [rows, now]);
 
   const formattedDate = useMemo(() => format(now, 'EEEE, MMMM d, yyyy'), [now]);
 
@@ -114,7 +124,7 @@ const TodayView = () => {
         ) : error ? (
           <div className="p-10 text-center text-red-600 text-lg">{error}</div>
         ) : visibleRows.length === 0 ? (
-          <div className="p-10 text-center text-gray-600 text-xl font-semibold">No classes today</div>
+          <div className="p-10 text-center text-gray-600 text-xl font-semibold">No more classes today</div>
         ) : (
           <div className="overflow-x-auto">
             <div className="w-full min-w-[1100px]">

@@ -57,17 +57,15 @@ const SessionsView = ({ onRefresh }) => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
-  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
-
   const [searchInput, setSearchInput] = useState('');
   const [tutorInput, setTutorInput] = useState('');
-  const [dateInput, setDateInput] = useState(todayStr);
+  const [dateInput, setDateInput] = useState('');
   const [dayInput, setDayInput] = useState('');
   const [roomInput, setRoomInput] = useState('');
 
   const [searchFilter, setSearchFilter] = useState('');
   const [tutorFilter, setTutorFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState(todayStr);
+  const [dateFilter, setDateFilter] = useState('');
   const [dayFilter, setDayFilter] = useState('');
   const [roomFilter, setRoomFilter] = useState('');
 
@@ -310,12 +308,12 @@ const SessionsView = ({ onRefresh }) => {
             onClick={() => {
               setSearchInput('');
               setTutorInput('');
-              setDateInput(todayStr);
+              setDateInput('');
               setDayInput('');
               setRoomInput('');
               setSearchFilter('');
               setTutorFilter('');
-              setDateFilter(todayStr);
+              setDateFilter('');
               setDayFilter('');
               setRoomFilter('');
             }}
