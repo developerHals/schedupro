@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { format } from 'date-fns';
+import { format, startOfDay, isBefore, isAfter, isSameDay } from 'date-fns';
 import { learnerTrackService } from '../../lib/learnerTrackService';
 
 const isCancelled = (status) => String(status || '').trim().toLowerCase().includes('cancel');
 
-const TodayView = () => {
+const TodayView = ({ selectedDate }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,8 +23,8 @@ const TodayView = () => {
       setLoading(true);
       setError(null);
 
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
-      const data = await learnerTrackService.getSessions({ date: todayStr });
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const data = await learnerTrackService.getSessions({ date: dateStr });
 
       const enriched = (data || [])
         .filter((s) => !isCancelled(s.BookingStatus))
@@ -37,11 +37,11 @@ const TodayView = () => {
 
       setRows(enriched);
     } catch (e) {
-      setError(e?.message || 'Failed to load today classes');
+      setError(e?.message || 'Failed to load classes');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedDate]);
 
   useEffect(() => {
     load();
@@ -74,8 +74,7 @@ const TodayView = () => {
   };
 
   const visibleRows = useMemo(() => {
-    const today = new Date();
-    const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const base = startOfDay(selectedDate);
 
     return (rows || []).filter(r => {
       const endTime = String(r?.EndTime || '').trim();
@@ -85,15 +84,22 @@ const TodayView = () => {
       end.setHours(Number(match[1]), Number(match[2]), 0, 0);
       return end.getTime() > now.getTime();
     });
-  }, [rows, now]);
+  }, [rows, now, selectedDate]);
 
-  const formattedDate = useMemo(() => format(now, 'EEEE, MMMM d, yyyy'), [now]);
+  const dayLabel = useMemo(() => {
+    const today = new Date();
+    if (isSameDay(selectedDate, today)) return 'Today';
+    if (isBefore(selectedDate, today)) return 'Past';
+    return 'Future';
+  }, [selectedDate]);
+
+  const formattedDate = useMemo(() => format(selectedDate, 'EEEE, MMMM d, yyyy'), [selectedDate]);
 
   return (
     <div className="w-full py-8">
       <div className="flex items-center justify-between gap-6 flex-wrap md:flex-nowrap">
         <div className="min-w-[220px]">
-          <h2 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tight leading-none">Today</h2>
+          <h2 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tight leading-none">{dayLabel}</h2>
           <div className="mt-2 text-lg md:text-xl font-medium text-gray-600">{formattedDate}</div>
         </div>
 
@@ -113,18 +119,18 @@ const TodayView = () => {
 
         <div className="min-w-[220px] flex justify-end">
           <div className="px-6 py-3 rounded-2xl bg-blue-600 text-white font-extrabold text-lg md:text-xl shadow-blue-200 shadow-lg">
-            {visibleRows.length} Classes Today
+            {visibleRows.length} Classes
           </div>
         </div>
       </div>
 
       <div className="mt-8 bg-white border border-gray-200 rounded-3xl shadow-lg overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-gray-500 text-lg">Loading today’s classes…</div>
+          <div className="p-10 text-center text-gray-500 text-lg">Loading classes…</div>
         ) : error ? (
           <div className="p-10 text-center text-red-600 text-lg">{error}</div>
         ) : visibleRows.length === 0 ? (
-          <div className="p-10 text-center text-gray-600 text-xl font-semibold">No more classes today</div>
+          <div className="p-10 text-center text-gray-600 text-xl font-semibold">No classes for this date</div>
         ) : (
           <div className="overflow-x-auto">
             <div className="w-full min-w-[1100px]">

@@ -584,7 +584,7 @@ function AppContent() {
               </div>
             }>
               {currentView === 'today' ? (
-                <TodayView />
+                <TodayView selectedDate={selectedDate} />
               ) : currentView === 'calendar' ? (
                 <CalendarGrid
                   bookings={bookings}
@@ -677,11 +677,11 @@ function AppContent() {
               ) : currentView === 'term-dates' ? (
                 <TermDatesView />
               ) : currentView === 'course-calendar' ? (
-                <CourseCalendarView />
+                <CourseCalendarView selectedDate={selectedDate} onDateChange={setSelectedDate} />
               ) : currentView === 'tutor-calendar' ? (
-                <TutorCalendarView />
+                <TutorCalendarView selectedDate={selectedDate} onDateChange={setSelectedDate} />
               ) : (
-                <RoomCalendarView rooms={rooms} />
+                <RoomCalendarView rooms={rooms} selectedDate={selectedDate} onDateChange={setSelectedDate} />
               )}
             </Suspense>
           </ErrorBoundary>

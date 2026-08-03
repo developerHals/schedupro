@@ -10,10 +10,9 @@ import {
 
 const { FiCalendar, FiChevronLeft, FiChevronRight, FiClock, FiMapPin, FiRefreshCw, FiUser, FiBell } = FiIcons;
 
-const TutorCalendarView = () => {
+const TutorCalendarView = ({ selectedDate, onDateChange }) => {
   const [tutors, setTutors] = useState([]);
   const [selectedTutorName, setSelectedTutorName] = useState('');
-  const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState('month'); // 'week' or 'month'
   const [allBookings, setAllBookings] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,11 +30,11 @@ const TutorCalendarView = () => {
       let start, end;
 
       if (viewType === 'month') {
-        start = startOfMonth(currentDate);
-        end = endOfMonth(currentDate);
+        start = startOfMonth(selectedDate);
+        end = endOfMonth(selectedDate);
       } else {
-        start = startOfWeek(currentDate, { weekStartsOn: 1 }); // Monday start
-        end = endOfWeek(currentDate, { weekStartsOn: 1 });
+        start = startOfWeek(selectedDate, { weekStartsOn: 1 }); // Monday start
+        end = endOfWeek(selectedDate, { weekStartsOn: 1 });
       }
 
       const startStr = format(start, 'yyyy-MM-dd');
@@ -69,7 +68,7 @@ const TutorCalendarView = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentDate, viewType]);
+  }, [selectedDate, viewType]);
 
   const bookings = useMemo(() => {
     if (!selectedTutorName) return [];
@@ -81,10 +80,11 @@ const TutorCalendarView = () => {
   }, [fetchBookings]);
 
   const navigateDate = (direction) => {
+    if (!onDateChange) return;
     if (viewType === 'month') {
-      setCurrentDate(prev => direction === 'next' ? addMonths(prev, 1) : subMonths(prev, 1));
+      onDateChange(direction === 'next' ? addMonths(selectedDate, 1) : subMonths(selectedDate, 1));
     } else {
-      setCurrentDate(prev => direction === 'next' ? addDays(prev, 7) : subDays(prev, 7));
+      onDateChange(direction === 'next' ? addDays(selectedDate, 7) : subDays(selectedDate, 7));
     }
   };
 
@@ -165,7 +165,7 @@ const TutorCalendarView = () => {
             <SafeIcon icon={FiChevronLeft} className="h-5 w-5" />
           </button>
           <span className="px-4 font-bold text-gray-800 min-w-[140px] text-center">
-            {format(currentDate, viewType === 'month' ? 'MMMM yyyy' : "'Week of' MMM d")}
+            {format(selectedDate, viewType === 'month' ? 'MMMM yyyy' : "'Week of' MMM d")}
           </span>
           <button
             onClick={() => navigateDate('next')}
@@ -204,8 +204,8 @@ const TutorCalendarView = () => {
   );
 
   const renderMonthView = () => {
-    const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
-    const end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
+    const start = startOfWeek(startOfMonth(selectedDate), { weekStartsOn: 1 });
+    const end = endOfWeek(endOfMonth(selectedDate), { weekStartsOn: 1 });
     const days = eachDayOfInterval({ start, end });
     const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -220,7 +220,7 @@ const TutorCalendarView = () => {
         </div>
         <div className="grid grid-cols-7 auto-rows-fr bg-gray-200 gap-px border-b border-gray-200">
           {days.map(day => {
-            const isCurrentMonth = isSameMonth(day, currentDate);
+            const isCurrentMonth = isSameMonth(day, selectedDate);
             const dayBookings = bookings.filter(b => isSameDay(parseISO(b.date), day));
             
             return (
@@ -229,7 +229,7 @@ const TutorCalendarView = () => {
                 className={`bg-white min-h-[120px] p-2 ${!isCurrentMonth ? 'bg-gray-50/50' : ''}`}
               >
                 <div className={`text-sm font-bold mb-2 ${
-                  isSameDay(day, new Date()) 
+                  isSameDay(day, selectedDate) 
                     ? 'bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center' 
                     : !isCurrentMonth ? 'text-gray-400' : 'text-gray-700'
                 }`}>
@@ -269,8 +269,8 @@ Curriculum: ${booking.curriculum_area || 'N/A'}`}
   };
 
   const renderWeekView = () => {
-    const start = startOfWeek(currentDate, { weekStartsOn: 1 });
-    const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+    const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
+    const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
     const days = eachDayOfInterval({ start, end });
     
     return (
@@ -282,12 +282,12 @@ Curriculum: ${booking.curriculum_area || 'N/A'}`}
           return (
             <div key={day.toString()} className="flex flex-col space-y-3">
               <div className={`text-center p-3 rounded-xl border ${
-                isSameDay(day, new Date()) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
+                isSameDay(day, selectedDate) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
               }`}>
-                <div className={`text-xs font-bold uppercase ${isSameDay(day, new Date()) ? 'text-blue-600' : 'text-gray-500'}`}>
+                <div className={`text-xs font-bold uppercase ${isSameDay(day, selectedDate) ? 'text-blue-600' : 'text-gray-500'}`}>
                   {format(day, 'EEE')}
                 </div>
-                <div className={`text-xl font-bold mt-1 ${isSameDay(day, new Date()) ? 'text-blue-700' : 'text-gray-800'}`}>
+                <div className={`text-xl font-bold mt-1 ${isSameDay(day, selectedDate) ? 'text-blue-700' : 'text-gray-800'}`}>
                   {format(day, 'd')}
                 </div>
               </div>
