@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { dataService } from '../../lib/dataService';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { learnerTrackService } from '../../lib/learnerTrackService';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../../common/SafeIcon';
 import { 
@@ -14,7 +14,7 @@ const RoomCalendarView = ({ rooms = [] }) => {
   const [selectedRoomId, setSelectedRoomId] = useState(rooms[0]?.id || '');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState('month'); // 'week' or 'month'
-  const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Update selected room if rooms load later
@@ -25,15 +25,6 @@ const RoomCalendarView = ({ rooms = [] }) => {
   }, [rooms, selectedRoomId]);
 
   const fetchBookings = useCallback(async () => {
-    if (!selectedRoomId) return;
-
-    // Find the room number for the selected room UUID
-    const selectedRoom = rooms.find(r => r.id === selectedRoomId);
-    if (!selectedRoom) return;
-    
-    // Ensure we match the format in 'Courses' table (e.g., "Room 1")
-    const roomNumber = selectedRoom.room_number; 
-
     setLoading(true);
     try {
       let start, end;
@@ -46,78 +37,47 @@ const RoomCalendarView = ({ rooms = [] }) => {
         end = endOfWeek(currentDate, { weekStartsOn: 1 });
       }
 
-      // Format as YYYY-MM-DD
       const startStr = format(start, 'yyyy-MM-dd');
       const endStr = format(end, 'yyyy-MM-dd');
 
-      // 1. Get bookings
-      const { data: bookingsData, error } = await dataService
-        .from('bookings')
-        .select('"Course ID", "Course Name", "Start date", "Start time", "End time", "Tutor", "Room", "Notes"')
-        .eq('Room', selectedRoomId) // Match by UUID
-        .gte('Start date', startStr)
-        .lte('Start date', endStr);
+      const sessions = await learnerTrackService.getSessions({ dateFrom: startStr, dateTo: endStr });
 
-      if (error) throw error;
+      const mapped = (sessions || []).map(session => ({
+        id: `lt-${session.ID}`,
+        date: session.Date ? session.Date.slice(0, 10) : '',
+        start_time: session.StartTime || '',
+        end_time: session.EndTime || '',
+        course_code: session.CourseShortLabel || session.CourseLabel || 'LT',
+        course_name: session.CourseTitle || 'Learner Track Session',
+        tutor: session.TutorLabel || '',
+        room: session.local_room_number || session.RoomLabel || '',
+        notes: '',
+        course_start: null,
+        course_end: null
+      }));
 
-      // 2. Get Course details for Start/End dates
-      const courseIds = [...new Set((bookingsData || []).map(b => b['Course ID']).filter(Boolean))];
-      let coursesMap = {};
-      
-      if (courseIds.length > 0) {
-        const { data: coursesData } = await dataService
-          .from('Courses')
-          .select('"Course ID", "Start date", "End date"')
-          .in('Course ID', courseIds);
-          
-        if (coursesData) {
-          coursesMap = coursesData.reduce((acc, c) => {
-            acc[c['Course ID']] = c;
-            return acc;
-          }, {});
-        }
-      }
-      
-      // Map 'bookings' data to component format
-      const mappedData = (bookingsData || []).map(item => {
-        const course = coursesMap[item['Course ID']];
-        return {
-          id: item['Course ID'],
-          date: item['Start date'],
-          start_time: item['Start time'],
-          end_time: item['End time'],
-          course_code: item['Course ID'],
-          course_name: item['Course Name'],
-          tutor: item['Tutor'],
-          room: selectedRoom.room_number || item['Room'], // Display readable name
-          notes: item['Notes'],
-          course_start: course ? course['Start date'] : null,
-          course_end: course ? course['End date'] : null
-        };
-      });
-
-      setBookings(mappedData);
+      setAllBookings(mapped);
     } catch (error) {
-      console.error('Error fetching room bookings:', error);
+      console.error('Error fetching room sessions:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedRoomId, currentDate, viewType, rooms]);
+  }, [currentDate, viewType]);
+
+  const bookings = useMemo(() => {
+    if (!selectedRoomId) return [];
+    const selectedRoom = rooms.find(r => r.id === selectedRoomId);
+    if (!selectedRoom) return [];
+    const roomNumber = String(selectedRoom.room_number || '');
+    return allBookings.filter(b =>
+      String(b.room) === roomNumber ||
+      String(b.room).toLowerCase() === roomNumber.toLowerCase() ||
+      (selectedRoom.name && String(b.room).toLowerCase() === String(selectedRoom.name).toLowerCase())
+    );
+  }, [allBookings, selectedRoomId, rooms]);
 
   useEffect(() => {
     fetchBookings();
-
-    // Subscribe to changes in 'bookings' table
-    const channel = dataService
-      .channel('room-calendar-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
-        fetchBookings();
-      })
-      .subscribe();
-
-    return () => {
-      dataService.removeChannel(channel);
-    };
   }, [fetchBookings]);
 
   const navigateDate = (direction) => {

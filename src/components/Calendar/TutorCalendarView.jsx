@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { dataService } from '../../lib/dataService';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { learnerTrackService } from '../../lib/learnerTrackService';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../../common/SafeIcon';
 import { 
@@ -15,41 +15,17 @@ const TutorCalendarView = () => {
   const [selectedTutorName, setSelectedTutorName] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState('month'); // 'week' or 'month'
-  const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [tutorsLoading, setTutorsLoading] = useState(true);
 
-  // Fetch tutors on mount
+  // Select the first tutor once the list is available
   useEffect(() => {
-    const fetchTutors = async () => {
-      try {
-        setTutorsLoading(true);
-        const { data, error } = await dataService
-          .from('Tutors')
-          .select('*')
-          .order('Tutor name');
-
-        if (error) throw error;
-
-        const validTutors = data?.filter(t => t['Tutor name']) || [];
-        setTutors(validTutors);
-        
-        if (validTutors.length > 0) {
-          setSelectedTutorName(validTutors[0]['Tutor name']);
-        }
-      } catch (err) {
-        console.error('Error fetching tutors:', err);
-      } finally {
-        setTutorsLoading(false);
-      }
-    };
-
-    fetchTutors();
-  }, []);
+    if (!selectedTutorName && tutors.length > 0) {
+      setSelectedTutorName(tutors[0]);
+    }
+  }, [tutors, selectedTutorName]);
 
   const fetchBookings = useCallback(async () => {
-    if (!selectedTutorName) return;
-
     setLoading(true);
     try {
       let start, end;
@@ -62,118 +38,46 @@ const TutorCalendarView = () => {
         end = endOfWeek(currentDate, { weekStartsOn: 1 });
       }
 
-      // Format as YYYY-MM-DD
       const startStr = format(start, 'yyyy-MM-dd');
       const endStr = format(end, 'yyyy-MM-dd');
 
-      // 1. Query bookings by Tutor name (Schedule Source)
-      const { data: bookingsData, error: bookingsError } = await dataService
-        .from('bookings')
-        .select('"Course ID", "Course Name", "Start date", "Start time", "End time", "Tutor", "Room", "Notes"')
-        .eq('Tutor', selectedTutorName)
-        .gte('Start date', startStr)
-        .lte('Start date', endStr);
+      const sessions = await learnerTrackService.getSessions({ dateFrom: startStr, dateTo: endStr });
 
-      if (bookingsError) throw bookingsError;
+      const mapped = (sessions || []).map(session => ({
+        id: `lt-${session.ID}`,
+        date: session.Date ? session.Date.slice(0, 10) : '',
+        start_time: session.StartTime || '',
+        end_time: session.EndTime || '',
+        course_code: session.CourseShortLabel || session.CourseLabel || 'LT',
+        course_name: session.CourseTitle || 'Learner Track Session',
+        tutor: session.TutorLabel || '',
+        room: session.local_room_number || session.RoomLabel || '',
+        notes: '',
+        aims: '',
+        curriculum_area: '',
+        sessions: '',
+        course_details: null,
+        course_start: null,
+        course_end: null
+      }));
 
-      // 2. Query Courses table for additional info (Data Enrichment)
-      // Optimized: Fetch only relevant courses based on bookings
-      const uniqueCourseIds = [...new Set((bookingsData || []).map(b => b['Course ID']).filter(Boolean))];
-      const uniqueRoomIds = [...new Set((bookingsData || []).map(b => b['Room']).filter(Boolean))];
-      
-      let coursesMap = {};
-      let roomsMap = {};
-
-      if (uniqueCourseIds.length > 0) {
-        const { data: coursesData, error: coursesError } = await dataService
-          .from('Courses')
-          .select('*')
-          .in('Course ID', uniqueCourseIds);
-          
-        if (coursesError) {
-           console.error('Error fetching course details:', coursesError);
-        } else if (coursesData) {
-           // Create lookup map for O(1) access
-           coursesMap = coursesData.reduce((acc, course) => {
-             acc[course['Course ID']] = course;
-             return acc;
-           }, {});
-        }
-      }
-
-      if (uniqueRoomIds.length > 0) {
-          const { data: roomsData, error: roomsError } = await dataService
-              .from('rooms')
-              .select('id, room_number')
-              .in('id', uniqueRoomIds);
-
-          if (roomsError) {
-              console.error('Error fetching room details:', roomsError);
-          } else if (roomsData) {
-              roomsMap = roomsData.reduce((acc, room) => {
-                  acc[room.id] = room.room_number;
-                  return acc;
-              }, {});
-          }
-      }
-
-      // Map bookings and merge with course details
-      const mappedData = (bookingsData || []).map(item => {
-        const courseDetail = coursesMap[item['Course ID']];
-        // Resolve Room Name: try map first (UUID), fallback to item['Room'] (legacy/name)
-        const resolvedRoomName = roomsMap[item['Room']] || item['Room'];
-        
-        return {
-          id: item['Course ID'],
-          date: item['Start date'],
-          start_time: item['Start time'],
-          end_time: item['End time'],
-          course_code: item['Course ID'],
-          course_name: item['Course Name'],
-          tutor: item['Tutor'],
-          room: resolvedRoomName,
-          notes: item['Notes'],
-          // Enhanced info from Courses table
-          aims: courseDetail?.['AIMs'] || '',
-          curriculum_area: courseDetail?.['Curriculum Area'] || '',
-          sessions: courseDetail?.['SESSIONS'] || '',
-          course_details: courseDetail,
-          course_start: courseDetail?.['Start date'],
-          course_end: courseDetail?.['End date']
-        };
-      });
-
-      setBookings(mappedData);
+      setAllBookings(mapped);
+      const tutorList = [...new Set(mapped.map(b => b.tutor).filter(Boolean))].sort();
+      setTutors(tutorList);
     } catch (error) {
-      console.error('Error fetching tutor bookings:', error);
+      console.error('Error fetching tutor sessions:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedTutorName, currentDate, viewType]);
+  }, [currentDate, viewType]);
+
+  const bookings = useMemo(() => {
+    if (!selectedTutorName) return [];
+    return allBookings.filter(b => b.tutor === selectedTutorName);
+  }, [allBookings, selectedTutorName]);
 
   useEffect(() => {
     fetchBookings();
-
-    // Subscribe to changes in 'bookings' table
-    const channel = dataService
-      .channel('tutor-calendar-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
-        fetchBookings();
-      })
-      .subscribe();
-
-    // Also subscribe to 'Courses' table changes since we display that info
-    const coursesChannel = dataService
-      .channel('tutor-calendar-courses-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Courses' }, () => {
-        fetchBookings();
-      })
-      .subscribe();
-
-    return () => {
-      dataService.removeChannel(channel);
-      dataService.removeChannel(coursesChannel);
-    };
   }, [fetchBookings]);
 
   const navigateDate = (direction) => {
@@ -211,8 +115,8 @@ const TutorCalendarView = () => {
           >
             {tutors.length === 0 && <option>No tutors available</option>}
             {tutors.map(tutor => (
-              <option key={tutor.id} value={tutor['Tutor name']} className="text-black">
-                {tutor['Tutor name']}
+              <option key={tutor} value={tutor} className="text-black">
+                {tutor}
               </option>
             ))}
           </select>

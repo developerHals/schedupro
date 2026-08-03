@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { dataService } from '../../lib/dataService';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { learnerTrackService } from '../../lib/learnerTrackService';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../../common/SafeIcon';
 import { 
@@ -15,37 +15,17 @@ const CourseCalendarView = () => {
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState('month'); // 'week' or 'month'
-  const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch unique Course IDs
+  // Select the first course once the list is available
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const { data, error } = await dataService
-          .from('Courses')
-          .select('"Course ID"')
-          .order('Course ID', { ascending: true });
-        
-        if (error) throw error;
-
-        // Filter unique IDs just in case
-        const uniqueCourses = [...new Set(data.map(c => c['Course ID']).filter(Boolean))];
-        setCourses(uniqueCourses);
-        if (uniqueCourses.length > 0) {
-          setSelectedCourseId(uniqueCourses[0]);
-        }
-      } catch (error) {
-        console.error('Error fetching courses:', error);
-      }
-    };
-
-    fetchCourses();
-  }, []);
+    if (!selectedCourseId && courses.length > 0) {
+      setSelectedCourseId(courses[0]);
+    }
+  }, [courses, selectedCourseId]);
 
   const fetchBookings = useCallback(async () => {
-    if (!selectedCourseId) return;
-
     setLoading(true);
     try {
       let start, end;
@@ -58,118 +38,42 @@ const CourseCalendarView = () => {
         end = endOfWeek(currentDate, { weekStartsOn: 1 });
       }
 
-      // Format as YYYY-MM-DD
       const startStr = format(start, 'yyyy-MM-dd');
       const endStr = format(end, 'yyyy-MM-dd');
 
-      // 1. Get bookings for the selected course
-      const { data: bookingsData, error } = await dataService
-        .from('bookings')
-        .select('"Course ID", "Course Name", "Start date", "Start time", "End time", "Tutor", "Room", "Notes"')
-        .eq('"Course ID"', selectedCourseId)
-        .gte('Start date', startStr)
-        .lte('Start date', endStr);
+      const sessions = await learnerTrackService.getSessions({ dateFrom: startStr, dateTo: endStr });
 
-      if (error) throw error;
+      const mapped = (sessions || []).map(session => ({
+        id: `lt-${session.ID}`,
+        date: session.Date ? session.Date.slice(0, 10) : '',
+        start_time: session.StartTime || '',
+        end_time: session.EndTime || '',
+        course_code: session.CourseShortLabel || session.CourseLabel || 'LT',
+        course_name: session.CourseTitle || 'Learner Track Session',
+        tutor: session.TutorLabel || '',
+        room: session.local_room_number || session.RoomLabel || '',
+        notes: '',
+        course_start: null,
+        course_end: null
+      }));
 
-      // 2. Get All Room details to map UUIDs to Room Numbers
-      let roomsMap = {};
-      const { data: roomsData } = await dataService
-        .from('rooms')
-        .select('id, room_number'); // Fetch all rooms to ensure we resolve everything
-      
-      if (roomsData) {
-        roomsMap = roomsData.reduce((acc, r) => {
-          // Prioritize room_number
-          const label = r.room_number 
-            ? (String(r.room_number).toLowerCase().includes('room') ? r.room_number : `Room ${r.room_number}`) 
-            : 'Unnamed Room';
-          acc[r.id] = label;
-          return acc;
-        }, {});
-      }
-
-      // 3. Get Course details for Start/End dates (self-lookup since we filtered by course)
-      let courseDetails = null;
-      const { data: courseData } = await dataService
-        .from('Courses')
-        .select('"Course ID", "Start date", "End date"')
-        .eq('"Course ID"', selectedCourseId)
-        .maybeSingle(); // Use maybeSingle as there might be multiple entries for same course ID (sessions), but we just need dates from one? 
-                        // Actually, 'Courses' table has one row per session usually? Or is it one row per course?
-                        // Based on NewCourseModal, it seems 'Courses' table stores sessions.
-                        // However, the requirement says "Start date and End date of the course".
-                        // Usually a course has a range. If 'Courses' has multiple rows, we might need min/max or just one.
-                        // Let's stick to the logic in RoomCalendarView: 
-                        // "const courseIds = [...new Set((bookingsData || []).map(b => b['Course ID'])..."
-                        // It queries 'Courses' table by 'Course ID'.
-      
-      // We already know the Course ID, let's fetch its range.
-      // If 'Courses' table has multiple rows for same ID, we might get any.
-      // RoomCalendarView does: .in('Course ID', courseIds).
-      // Let's do the same logic but for single ID.
-      
-      // Re-using logic from RoomCalendarView for consistency
-      const { data: coursesData } = await dataService
-          .from('Courses')
-          .select('"Course ID", "Start date", "End date"')
-          .eq('"Course ID"', selectedCourseId)
-          .limit(1); // Just get one to grab dates? 
-          // Wait, if a course spans multiple sessions, does it have one start/end date?
-          // RoomCalendarView joins and puts it on the tile.
-          // Let's assume fetching one record for the Course ID gives the correct course start/end.
-      
-      if (coursesData && coursesData.length > 0) {
-          courseDetails = coursesData[0];
-      }
-      
-      // Map 'bookings' data to component format
-      const mappedData = (bookingsData || []).map(item => {
-        // Resolve room name
-        // The 'Room' field in bookings is a UUID.
-        // We use the roomsMap to get the readable name.
-        // If not in map, check if it's a UUID or a legacy string name
-        const rawRoom = item['Room'];
-        const isUUID = rawRoom && rawRoom.length === 36 && rawRoom.split('-').length === 5;
-        const roomName = roomsMap[rawRoom] || (isUUID ? 'Unknown Room' : (rawRoom || 'Unknown Room'));
-
-        return {
-          id: item['Course ID'] + item['Start date'] + item['Start time'], // Generate a unique key if ID is missing
-          date: item['Start date'],
-          start_time: item['Start time'],
-          end_time: item['End time'],
-          course_code: item['Course ID'],
-          course_name: item['Course Name'],
-          tutor: item['Tutor'],
-          room: roomName, 
-          notes: item['Notes'],
-          course_start: courseDetails ? courseDetails['Start date'] : null,
-          course_end: courseDetails ? courseDetails['End date'] : null
-        };
-      });
-
-      setBookings(mappedData);
+      setAllBookings(mapped);
+      const courseList = [...new Set(mapped.map(b => b.course_code).filter(Boolean))].sort();
+      setCourses(courseList);
     } catch (error) {
-      console.error('Error fetching course bookings:', error);
+      console.error('Error fetching course sessions:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedCourseId, currentDate, viewType]);
+  }, [currentDate, viewType]);
+
+  const bookings = useMemo(() => {
+    if (!selectedCourseId) return [];
+    return allBookings.filter(b => b.course_code === selectedCourseId);
+  }, [allBookings, selectedCourseId]);
 
   useEffect(() => {
     fetchBookings();
-
-    // Subscribe to changes in 'bookings' table
-    const channel = dataService
-      .channel('course-calendar-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
-        fetchBookings();
-      })
-      .subscribe();
-
-    return () => {
-      dataService.removeChannel(channel);
-    };
   }, [fetchBookings]);
 
   const navigateDate = (direction) => {
