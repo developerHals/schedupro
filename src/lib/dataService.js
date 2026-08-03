@@ -5,6 +5,7 @@ const API_ROOT = '/api';
 const SUPPORTED_TABLES = {
   rooms: `${API_ROOT}/rooms`,
   users: `${API_ROOT}/users`,
+  holidays: `${API_ROOT}/holidays`,
 };
 
 const EMPTY_RESPONSE = { data: [], error: null };

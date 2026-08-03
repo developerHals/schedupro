@@ -14,3 +14,14 @@ CREATE TABLE IF NOT EXISTS rooms (
   capacity INTEGER DEFAULT 20,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS holidays (
+  id TEXT PRIMARY KEY,
+  "Academic Year" TEXT,
+  "Term" TEXT,
+  "Description" TEXT,
+  "Day" TEXT,
+  "Date" TEXT,
+  "holiday_key" INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

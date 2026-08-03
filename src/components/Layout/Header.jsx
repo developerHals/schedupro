@@ -2,7 +2,7 @@
 import { 
   FiMenu, FiX, FiCalendar, FiSettings, FiUsers, FiUser,
   FiDatabase, FiShare2, FiChevronLeft, FiChevronRight, FiGrid, FiPlus, FiSmartphone,
-  FiLogOut, FiLogIn, FiBook, FiLayout, FiList, FiCheckSquare, FiTrash2, FiSearch, FiPieChart, FiDollarSign, FiBell, FiMapPin
+  FiLogOut, FiLogIn, FiBook, FiLayout, FiList, FiCheckSquare, FiTrash2, FiSearch, FiPieChart, FiDollarSign, FiBell, FiMapPin, FiAward
 } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataService } from '../../lib/dataService';
@@ -142,23 +142,25 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
         title="Terms dates"
         subtitle="View and copy dates"
       />
-
-
-
-
-
       <MenuButton
-        onClick={() => { onViewChange('learning-aims'); setMenuOpen(false); }}
-        icon={FiList}
-        title="Learning Aims"
-        subtitle="Manage all learning aims"
+        onClick={() => { window.open('https://lbharingey.sharepoint.com/sites/haringeylearns/Shared%20Documents/Forms/AllItems.aspx', '_blank'); setMenuOpen(false); }}
+        icon={FiShare2}
+        title="Corp drive"
+        subtitle="Open SharePoint documents"
       />
       <MenuButton
-        onClick={() => { onViewChange('tailored-learning'); setMenuOpen(false); }}
-        icon={FiList}
-        title="Tailored Learning"
-        subtitle="Manage tailored aims"
+        onClick={() => { window.open('https://lbharingey.sharepoint.com/:x:/r/sites/haringeylearns/Shared%20Documents/HL%20Service%20file/HL%20Curriculum%20%26%20Quality/HL%20Curriculum%20Planning/Curriculum%20Planning.xlsx?d=w41e82f297d8a45cea090df4859adbc6d&csf=1&web=1&e=RaRmUc', '_blank'); setMenuOpen(false); }}
+        icon={FiShare2}
+        title="Curriculum"
+        subtitle="Open curriculum planning"
       />
+
+
+
+
+
+
+
       <MenuButton
         onClick={() => { onViewChange('approve-bookings'); setMenuOpen(false); }}
         icon={FiCheckSquare}
@@ -170,6 +172,12 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
 
 
 
+      <MenuButton
+        onClick={() => { window.open('https://stalwart-macaron-c9e629.netlify.app/', '_blank'); setMenuOpen(false); }}
+        icon={FiAward}
+        title="Certificates"
+        subtitle="Open certificates portal"
+      />
       <MenuButton
         onClick={() => { setShowSettingsModal(true); setMenuOpen(false); }}
         icon={FiSettings}
@@ -208,22 +216,30 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
         title="Terms dates"
         subtitle="View and copy dates"
       />
-
-
-
-
-
       <MenuButton
-        onClick={() => { onViewChange('learning-aims'); setMenuOpen(false); }}
-        icon={FiList}
-        title="Learning Aims"
-        subtitle="Manage all learning aims"
+        onClick={() => { window.open('https://lbharingey.sharepoint.com/sites/haringeylearns/Shared%20Documents/Forms/AllItems.aspx', '_blank'); setMenuOpen(false); }}
+        icon={FiShare2}
+        title="Corp drive"
+        subtitle="Open SharePoint documents"
       />
       <MenuButton
-        onClick={() => { onViewChange('tailored-learning'); setMenuOpen(false); }}
-        icon={FiList}
-        title="Tailored Learning"
-        subtitle="Manage tailored aims"
+        onClick={() => { window.open('https://lbharingey.sharepoint.com/:x:/r/sites/haringeylearns/Shared%20Documents/HL%20Service%20file/HL%20Curriculum%20%26%20Quality/HL%20Curriculum%20Planning/Curriculum%20Planning.xlsx?d=w41e82f297d8a45cea090df4859adbc6d&csf=1&web=1&e=RaRmUc', '_blank'); setMenuOpen(false); }}
+        icon={FiShare2}
+        title="Curriculum"
+        subtitle="Open curriculum planning"
+      />
+
+
+
+
+
+
+
+      <MenuButton
+        onClick={() => { window.open('https://stalwart-macaron-c9e629.netlify.app/', '_blank'); setMenuOpen(false); }}
+        icon={FiAward}
+        title="Certificates"
+        subtitle="Open certificates portal"
       />
 
 
@@ -259,16 +275,24 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
         subtitle="View and copy dates"
       />
       <MenuButton
-        onClick={() => { onViewChange('learning-aims'); setMenuOpen(false); }}
-        icon={FiList}
-        title="Learning Aims"
-        subtitle="Manage all learning aims"
+        onClick={() => { window.open('https://lbharingey.sharepoint.com/sites/haringeylearns/Shared%20Documents/Forms/AllItems.aspx', '_blank'); setMenuOpen(false); }}
+        icon={FiShare2}
+        title="Corp drive"
+        subtitle="Open SharePoint documents"
       />
       <MenuButton
-        onClick={() => { onViewChange('tailored-learning'); setMenuOpen(false); }}
-        icon={FiList}
-        title="Tailored Learning"
-        subtitle="Manage tailored aims"
+        onClick={() => { window.open('https://lbharingey.sharepoint.com/:x:/r/sites/haringeylearns/Shared%20Documents/HL%20Service%20file/HL%20Curriculum%20%26%20Quality/HL%20Curriculum%20Planning/Curriculum%20Planning.xlsx?d=w41e82f297d8a45cea090df4859adbc6d&csf=1&web=1&e=RaRmUc', '_blank'); setMenuOpen(false); }}
+        icon={FiShare2}
+        title="Curriculum"
+        subtitle="Open curriculum planning"
+      />
+
+
+      <MenuButton
+        onClick={() => { window.open('https://stalwart-macaron-c9e629.netlify.app/', '_blank'); setMenuOpen(false); }}
+        icon={FiAward}
+        title="Certificates"
+        subtitle="Open certificates portal"
       />
     </>
   );
