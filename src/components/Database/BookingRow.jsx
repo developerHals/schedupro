@@ -13,6 +13,7 @@ const BookingRow = memo(({ booking, viewMode, rooms, onApprove, onDelete, onEdit
   };
 
   const roomName = rooms.find(r => r.id === booking['Room'])?.room_number || booking['Room'];
+  const isPending = booking['Lesson Number'] === 'Pending' || booking['Status'] === 'Pending';
 
   return (
     <tr className="hover:bg-gray-50 transition-colors">
@@ -32,22 +33,28 @@ const BookingRow = memo(({ booking, viewMode, rooms, onApprove, onDelete, onEdit
       )}
       {viewMode === 'approve-bookings' && (
         <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-          <div className="flex items-center justify-end space-x-2">
-            <button
-              onClick={() => onApprove(booking)}
-              className="p-1 text-green-600 hover:bg-green-50 rounded-full transition-colors"
-              title="Approve — assign room & fee"
-            >
-              <FiCheck className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => onDelete(booking.id)}
-              className="p-1 text-red-600 hover:bg-red-50 rounded-full transition-colors"
-              title="Reject"
-            >
-              <FiX className="h-5 w-5" />
-            </button>
-          </div>
+          {isPending ? (
+            <div className="flex items-center justify-end space-x-2">
+              <button
+                onClick={() => onApprove(booking)}
+                className="p-1 text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                title="Approve — assign room & fee"
+              >
+                <FiCheck className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => onDelete(booking.id)}
+                className="p-1 text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                title="Reject"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+          ) : (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              {booking['Status'] || booking['Lesson Number'] || 'Approved'}
+            </span>
+          )}
         </td>
       )}
     </tr>

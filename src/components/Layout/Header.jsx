@@ -128,7 +128,7 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
         </div>
       </button>
       <MenuButton
-        onClick={() => { onViewChange('approve-bookings'); setMenuOpen(false); }}
+        onClick={() => { window.open('/?view=approve-bookings', '_blank'); setMenuOpen(false); }}
         icon={FiCheckSquare}
         title="Approve Booking"
         subtitle="Review pending bookings"

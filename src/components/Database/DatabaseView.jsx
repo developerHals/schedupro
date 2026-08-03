@@ -101,14 +101,8 @@ const ApproveBookingsView = ({ onBookingUpdate, onBookingDelete, viewMode = 'app
       filtered = filtered.filter(booking => booking['Start date'] === dateFilter);
     }
 
-    if (viewMode === 'approve-bookings') {
-      filtered = filtered.filter(booking => 
-        booking['Lesson Number'] === 'Pending'
-      );
-    }
-
     return filtered;
-  }, [bookings, searchTerm, dateFilter, viewMode]);
+  }, [bookings, searchTerm, dateFilter]);
 
   useEffect(() => {
     setFilteredBookings(filteredBookingsMemo);

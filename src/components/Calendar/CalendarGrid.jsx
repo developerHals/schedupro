@@ -99,28 +99,7 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
       });
     };
 
-    // --- Process internal bookings ---
-    (bookings || []).forEach(booking => {
-      const status = booking.courseStatus || booking.Status || booking['Status'] || '';
-      if (HIDDEN_STATUSES.has(status)) return;
-
-      const room = resolveRoom(booking['Room']);
-      if (!room) return;
-
-      const displayRoomName = room.room_number
-        ? (String(room.room_number).toLowerCase().includes('room') ? room.room_number : `Room ${room.room_number}`)
-        : room.name;
-
-      const processedBooking = {
-        ...booking,
-        displayRoomName,
-        _normalizedRoomId: room.id,
-      };
-
-      addToLookup(processedBooking, booking['Start time'], booking['End time']);
-    });
-
-    // --- Process Learner Track sessions ---
+    // --- Process Learner Track sessions first (courses are the main grid view) ---
     let matchedSessions = 0;
     (sessions || []).forEach(session => {
       const status = String(session.BookingStatus || '').trim().toLowerCase();
@@ -154,7 +133,31 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
       addToLookup(processedSession, session.StartTime, session.EndTime);
     });
 
-    console.log('[CalendarGrid] lookup: rooms with tiles =', Object.keys(lookup).length, 'matched sessions =', matchedSessions, 'total rooms =', rooms.length);
+    // --- Process approved internal bookings as an overlay on free slots ---
+    let matchedBookings = 0;
+    (bookings || []).forEach(booking => {
+      const status = booking['Status'] || booking['Lesson Number'] || booking.Status || '';
+      const normalized = String(status).trim();
+      if (HIDDEN_STATUSES.has(normalized) || normalized === 'Pending') return;
+
+      const room = resolveRoom(booking['Room']);
+      if (!room) return;
+      matchedBookings++;
+
+      const displayRoomName = room.room_number
+        ? (String(room.room_number).toLowerCase().includes('room') ? room.room_number : `Room ${room.room_number}`)
+        : room.name;
+
+      const processedBooking = {
+        ...booking,
+        displayRoomName,
+        _normalizedRoomId: room.id,
+      };
+
+      addToLookup(processedBooking, booking['Start time'], booking['End time']);
+    });
+
+    console.log('[CalendarGrid] lookup: rooms with tiles =', Object.keys(lookup).length, 'matched sessions =', matchedSessions, 'matched bookings =', matchedBookings, 'total rooms =', rooms.length);
     return lookup;
   }, [bookings, rooms, sessions]);
 
