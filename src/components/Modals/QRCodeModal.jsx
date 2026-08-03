@@ -3,7 +3,7 @@ import { FiX, FiDownload, FiShare2, FiCopy } from 'react-icons/fi';
 import QRCode from 'qrcode.react';
 
 const QRCodeModal = ({ isOpen, onClose }) => {
-  const currentUrl = window.location.href;
+  const currentUrl = 'https://schedupro.pages.dev/';
 
   const downloadQR = () => {
     const canvas = document.getElementById('qr-code');
