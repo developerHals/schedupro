@@ -62,8 +62,8 @@ const TutorCalendarView = () => {
       }));
 
       setAllBookings(mapped);
-      const tutorList = [...new Set(mapped.map(b => b.tutor).filter(Boolean))].sort();
-      setTutors(tutorList);
+      const currentTutors = [...new Set(mapped.map(b => b.tutor).filter(Boolean))].sort();
+      setTutors([...new Set([...currentTutors, selectedTutorName].filter(Boolean))].sort());
     } catch (error) {
       console.error('Error fetching tutor sessions:', error);
     } finally {
