@@ -127,68 +127,26 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
           <p className="text-[10px] text-red-500 font-medium">Submit an external room request</p>
         </div>
       </button>
-      <MenuButton
-        onClick={() => { onViewChange('notifications'); setMenuOpen(false); }}
-        icon={FiBell}
-        title="Notifications"
-        subtitle={urgentPendingCount > 0 ? `${urgentPendingCount} courses need attention` : "View latest comments"}
-        hasAlert={urgentPendingCount > 0}
-      />
+
       <MenuButton
         onClick={() => { setShowQRModal(true); setMenuOpen(false); }}
         icon={FiSmartphone}
         title="QR Access"
         subtitle="Scan for mobile view"
       />
-      <MenuButton
-        onClick={() => { onNewCourse?.(); setMenuOpen(false); }}
-        icon={FiBook}
-        title="New Course"
-        subtitle="Create a new course schedule"
-        variant="red"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('our-courses'); setMenuOpen(false); }}
-        icon={FiSearch}
-        title="Our Courses"
-        subtitle="Search and view course details"
-      />
+
+
       <MenuButton
         onClick={() => { onViewChange('term-dates'); setMenuOpen(false); }}
         icon={FiCalendar}
         title="Terms dates"
         subtitle="View and copy dates"
       />
-      <MenuButton
-        onClick={() => { onViewChange('dashboard'); setMenuOpen(false); }}
-        icon={FiPieChart}
-        title="Terms Dashboard"
-        subtitle="Financial Overview"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('income-report'); setMenuOpen(false); }}
-        icon={FiPieChart}
-        title="Courses Forecasts"
-        subtitle="Forecast vs Budget analysis"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('tutor-dashboard'); setMenuOpen(false); }}
-        icon={FiUsers}
-        title="Tutor Dashboard"
-        subtitle="Tutor profitability & performance"
-      />
-      <MenuButton
-        onClick={() => { window.open('/costing', '_blank'); setMenuOpen(false); }}
-        icon={FiDollarSign}
-        title="Courses Costing"
-        subtitle="Course Cost Calculator"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('fees'); setMenuOpen(false); }}
-        icon={FiDollarSign}
-        title="Courses Fees"
-        subtitle="Manage course fees"
-      />
+
+
+
+
+
       <MenuButton
         onClick={() => { onViewChange('learning-aims'); setMenuOpen(false); }}
         icon={FiList}
@@ -207,48 +165,10 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
         title="Approve Booking"
         subtitle="Review pending bookings"
       />
-      <MenuButton
-        onClick={() => { onViewChange('rooms-dashboard'); setMenuOpen(false); }}
-        icon={FiMapPin}
-        title="Rooms Dashboard"
-        subtitle="Room occupancy & revenue"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('tasks-board'); setMenuOpen(false); }}
-        icon={FiLayout}
-        title="Tasks Board"
-        subtitle="Manage tasks & projects"
-      />
 
-      {isSuperuser() && (
-        <>
-          <MenuButton
-            onClick={() => { onViewChange('backup-courses'); setMenuOpen(false); }}
-            icon={FiDatabase}
-            title="Backup Courses"
-            subtitle="View courses backup"
-          />
-          <MenuButton
-            onClick={() => { onViewChange('deleted-courses'); setMenuOpen(false); }}
-            icon={FiTrash2}
-            title="Deleted Courses"
-            subtitle="View/Manage deleted courses"
-            variant="red"
-          />
-          <MenuButton
-            onClick={() => { onViewChange('tutors'); setMenuOpen(false); }}
-            icon={FiUsers}
-            title="Tutors"
-            subtitle="Manage registered tutors"
-          />
-          <MenuButton
-            onClick={() => { onViewChange('cms'); setMenuOpen(false); }}
-            icon={FiUsers}
-            title="CMs"
-            subtitle="Manage Course Managers"
-          />
-        </>
-      )}
+
+
+
 
       <MenuButton
         onClick={() => { setShowSettingsModal(true); setMenuOpen(false); }}
@@ -273,68 +193,26 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
           <p className="text-[10px] text-red-500 font-medium">Submit an external room request</p>
         </div>
       </button>
-      <MenuButton
-        onClick={() => { onViewChange('notifications'); setMenuOpen(false); }}
-        icon={FiBell}
-        title="Notifications"
-        subtitle={urgentPendingCount > 0 ? `${urgentPendingCount} courses need attention` : "View latest comments"}
-        hasAlert={urgentPendingCount > 0}
-      />
+
       <MenuButton
         onClick={() => { setShowQRModal(true); setMenuOpen(false); }}
         icon={FiSmartphone}
         title="QR Access"
         subtitle="Scan for mobile view"
       />
-      <MenuButton
-        onClick={() => { onNewCourse?.(); setMenuOpen(false); }}
-        icon={FiBook}
-        title="New Course"
-        subtitle="Create a new course schedule"
-        variant="red"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('our-courses'); setMenuOpen(false); }}
-        icon={FiSearch}
-        title="Our Courses"
-        subtitle="Search and view course details"
-      />
+
+
       <MenuButton
         onClick={() => { onViewChange('term-dates'); setMenuOpen(false); }}
         icon={FiCalendar}
         title="Terms dates"
         subtitle="View and copy dates"
       />
-      <MenuButton
-        onClick={() => { onViewChange('dashboard'); setMenuOpen(false); }}
-        icon={FiPieChart}
-        title="Terms Dashboard"
-        subtitle="Financial Overview"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('income-report'); setMenuOpen(false); }}
-        icon={FiPieChart}
-        title="Courses Forecasts"
-        subtitle="Forecast vs Budget analysis"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('tutor-dashboard'); setMenuOpen(false); }}
-        icon={FiUsers}
-        title="Tutor Dashboard"
-        subtitle="Tutor profitability & performance"
-      />
-      <MenuButton
-        onClick={() => { window.open('/costing', '_blank'); setMenuOpen(false); }}
-        icon={FiDollarSign}
-        title="Courses Costing"
-        subtitle="Course Cost Calculator"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('fees'); setMenuOpen(false); }}
-        icon={FiDollarSign}
-        title="Courses Fees"
-        subtitle="Manage course fees"
-      />
+
+
+
+
+
       <MenuButton
         onClick={() => { onViewChange('learning-aims'); setMenuOpen(false); }}
         icon={FiList}
@@ -347,18 +225,8 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
         title="Tailored Learning"
         subtitle="Manage tailored aims"
       />
-      <MenuButton
-        onClick={() => { onViewChange('rooms-dashboard'); setMenuOpen(false); }}
-        icon={FiMapPin}
-        title="Rooms Dashboard"
-        subtitle="Room occupancy & revenue"
-      />
-      <MenuButton
-        onClick={() => { onViewChange('tasks-board'); setMenuOpen(false); }}
-        icon={FiLayout}
-        title="Tasks Board"
-        subtitle="Manage tasks & projects"
-      />
+
+
     </>
   );
 
@@ -376,25 +244,14 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
           <p className="text-[10px] text-red-500 font-medium">Submit an external room request</p>
         </div>
       </button>
-      <MenuButton
-        onClick={() => { onViewChange('notifications'); setMenuOpen(false); }}
-        icon={FiBell}
-        title="Notifications"
-        subtitle={urgentPendingCount > 0 ? `${urgentPendingCount} courses need attention` : "View latest comments"}
-        hasAlert={urgentPendingCount > 0}
-      />
+
       <MenuButton
         onClick={() => { setShowQRModal(true); setMenuOpen(false); }}
         icon={FiSmartphone}
         title="QR Access"
         subtitle="Scan for mobile view"
       />
-      <MenuButton
-        onClick={() => { onViewChange('our-courses'); setMenuOpen(false); }}
-        icon={FiSearch}
-        title="Our Courses"
-        subtitle="Search and view course details"
-      />
+
       <MenuButton
         onClick={() => { onViewChange('term-dates'); setMenuOpen(false); }}
         icon={FiCalendar}
@@ -442,12 +299,7 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
         title="Timetable"
         subtitle="View full schedule"
       />
-      <MenuButton
-        onClick={() => { onViewChange('our-courses'); setMenuOpen(false); }}
-        icon={FiSearch}
-        title="Our Courses"
-        subtitle="Search and view course details"
-      />
+
       <MenuButton
         onClick={() => { setShowQRModal(true); setMenuOpen(false); }}
         icon={FiSmartphone}
