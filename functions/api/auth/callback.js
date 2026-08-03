@@ -106,6 +106,13 @@ export async function onRequestGet(context) {
   const dbUser = results?.[0];
 
   if (!dbUser) {
+    // Allow any user from the haringeylearns.ac.uk domain to log in as a guest.
+    if (email.endsWith('@haringeylearns.ac.uk')) {
+      const sessionCookie = await createSessionCookie(email, secret);
+      headers.append('Set-Cookie', sessionCookie);
+      headers.set('Location', '/');
+      return new Response(null, { status: 302, headers });
+    }
     const unauthorizedCookie = await createUnauthorizedCookie(email, secret);
     headers.append('Set-Cookie', unauthorizedCookie);
     headers.set('Location', '/?unauthorized=1');

@@ -43,8 +43,7 @@ const BookingCell = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [bookingToDelete, setBookingToDelete] = useState(null);
-  const [showChoicePopup, setShowChoicePopup] = useState(false);
-  const { isSuperuser, isAdmin, canEditBooking, canDeleteBooking } = useAuth();
+  const { user, isSuperuser, isAdmin, canEditBooking, canDeleteBooking } = useAuth();
 
   const bookingsList = bookings || (booking ? [booking] : []);
 
@@ -103,23 +102,7 @@ const BookingCell = ({
 
   const handlePlusClick = (e) => {
     e.stopPropagation();
-    if (isSuperuser() || isAdmin()) {
-      setShowChoicePopup(true);
-    } else {
-      if (onNewCourse) onNewCourse(roomId, sessionType);
-    }
-  };
-
-  const handleChoiceBooking = (e) => {
-    e.stopPropagation();
-    setShowChoicePopup(false);
     if (onCellClick) onCellClick(roomId, sessionType, null);
-  };
-
-  const handleChoiceCourse = (e) => {
-    e.stopPropagation();
-    setShowChoicePopup(false);
-    if (onNewCourse) onNewCourse(roomId, sessionType);
   };
 
   const handleQuickCopy = (e, courseId) => {
@@ -181,54 +164,14 @@ const BookingCell = ({
         ...(hasBorderTop ? { borderTop: '2px solid white' } : {})
       }}
       onClick={() => {
-        if (bookingsList.length === 0 && canEdit) {
-          if (isSuperuser() || isAdmin()) {
-            setShowChoicePopup(true);
-          } else {
-            if (onNewCourse) onNewCourse(roomId, sessionType);
-          }
+        if (bookingsList.length === 0 && canEdit && onCellClick) {
+          onCellClick(roomId, sessionType, null);
         }
       }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Choice popup for empty slot */}
-      {showChoicePopup && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30"
-          onClick={(e) => { e.stopPropagation(); setShowChoicePopup(false); }}
-        >
-          <div
-            className="bg-white rounded-xl shadow-xl p-6 w-72 flex flex-col gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-sm font-bold text-gray-800">What would you like to create?</h3>
-              <button onClick={() => setShowChoicePopup(false)} className="text-gray-400 hover:text-gray-600">
-                <SafeIcon icon={FiX} className="w-4 h-4" />
-              </button>
-            </div>
-            {(isSuperuser() || isAdmin()) && (
-              <button
-                onClick={handleChoiceBooking}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors font-semibold text-sm"
-              >
-                <SafeIcon icon={FiCalendar} className="w-5 h-5" />
-                New Booking
-              </button>
-            )}
-            <button
-              onClick={handleChoiceCourse}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors font-semibold text-sm"
-            >
-              <SafeIcon icon={FiBook} className="w-5 h-5" />
-              New Course
-            </button>
-          </div>
-        </div>
-      )}
-
       {bookingsList.length > 0 ? (
         <div className="flex flex-col gap-2 h-full">
             {bookingsList.map((bookingItem) => {
@@ -382,10 +325,11 @@ const BookingCell = ({
         </div>
       ) : (
         <div className="h-full flex items-center justify-center group/empty">
-          {canEdit && (
+          {user && (
             <button 
               className="w-6 h-6 flex items-center justify-center rounded-full bg-blue-50 text-blue-400 hover:bg-blue-100 hover:text-blue-600 hover:scale-110 transition-all duration-200 shadow-sm opacity-0 group-hover/empty:opacity-100"
               onClick={handlePlusClick}
+              title={isSuperuser() || isAdmin() ? 'Make a booking' : 'Request a booking'}
             >
               <SafeIcon icon={FiPlus} className="w-4 h-4" />
             </button>

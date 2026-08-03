@@ -130,7 +130,7 @@ function AppContent() {
   const [bookingToApprove, setBookingToApprove] = useState(null)
   const [showApproveModal, setShowApproveModal] = useState(false)
   
-  const { user, profile, isSuperuser, unauthorized, loading: authLoading } = useAuth()
+  const { user, profile, isSuperuser, isAdmin, unauthorized, loading: authLoading } = useAuth()
   const {
     bookings,
     rooms,
@@ -163,6 +163,7 @@ function AppContent() {
         'Course Name': bookingData.notes || bookingData.bookingType,
         'Notes': bookingData.bookingType,
         'Lesson Number': (superuser || admin) ? 'Approved' : 'Pending',
+        'Status': (superuser || admin) ? 'Approved' : 'Pending',
         'Tutor': bookingData.tutor,
         'Start date': bookingData.date,
         'End date': bookingData.date, // Single day
@@ -187,25 +188,13 @@ function AppContent() {
   }, [createBooking, rooms, user, profile, isSuperuser]);
 
   const handleRequestBooking = React.useCallback(async (bookingData) => {
-    // ── Layer 1: client-side rate limit (2 min cooldown) ──────────────────
-    // This is a UX convenience only — the real enforcement is in the Edge Function.
-    const RATE_LIMIT_MS = 2 * 60 * 1000
-    const lastSubmit = localStorage.getItem('lastBookingRequest')
-    if (lastSubmit) {
-      const elapsed = Date.now() - parseInt(lastSubmit, 10)
-      if (elapsed < RATE_LIMIT_MS) {
-        const remaining = Math.ceil((RATE_LIMIT_MS - elapsed) / 1000)
-        alert(`Please wait ${remaining} seconds before submitting another request.`)
-        return { success: false }
-      }
-    }
-
     try {
       const { error } = await createBooking({
         'Course ID': bookingData.bookingType,
         'Course Name': bookingData.notes || bookingData.bookingType,
         'Notes': bookingData.bookingType,
         'Lesson Number': 'Pending',
+        'Status': 'Pending',
         'Tutor': bookingData.tutor,
         'Start date': bookingData.date,
         'End date': bookingData.date,
@@ -213,17 +202,17 @@ function AppContent() {
         'End time': bookingData.end_time,
         'Room': null,
         'Day Details': format(new Date(bookingData.date), 'EEEE') + ' - request',
+        'created_by': user?.email || 'system',
         fees: null,
       })
       if (error) throw error
 
-      localStorage.setItem('lastBookingRequest', String(Date.now()))
       return { success: true }
     } catch (error) {
       console.error('Error submitting booking request:', error)
       return { success: false, error }
     }
-  }, [createBooking])
+  }, [createBooking, user])
 
   const handleApproveWithRoom = React.useCallback((booking) => {
     setBookingToApprove(booking)
@@ -281,7 +270,8 @@ function AppContent() {
     try {
       const { error } = await updateBooking(bookingId, {
         'Comments': comment,
-        'Lesson Number': 'Pending'
+        'Lesson Number': 'Pending',
+        'Status': 'Pending',
       });
       if (error) throw error;
       
@@ -617,7 +607,12 @@ function AppContent() {
                       start_time: start,
                       end_time: end
                     });
-                    setShowBookRoomModal(true);
+
+                    if (isSuperuser() || isAdmin()) {
+                      setShowBookRoomModal(true);
+                    } else {
+                      setShowRequestModal(true);
+                    }
                   }}
                   onNewCourse={() => {
                     setCourseToEdit(null);
@@ -756,10 +751,14 @@ function AppContent() {
       {/* External booking request modal — visible to everyone, requestMode greys out room/fee */}
       <BookRoomModal
         isOpen={showRequestModal}
-        onClose={() => setShowRequestModal(false)}
+        onClose={() => {
+          setShowRequestModal(false)
+          setInitialBookingData(null)
+        }}
         onSubmit={handleRequestBooking}
         getAvailableRooms={getAvailableRooms}
         allRooms={rooms}
+        initialValues={initialBookingData}
         requestMode={true}
       />
 
@@ -784,6 +783,7 @@ function AppContent() {
             'Day Details': format(new Date(data.date), 'EEEE') + ' - ' + (data.session_type || 'booking'),
             fees: data.fees !== '' && data.fees !== null && data.fees !== undefined ? parseFloat(data.fees) : null,
             'Lesson Number': 'Approved',
+            'Status': 'Approved',
             'approved_by': user?.email || 'system', // Track who approved this booking
           })
           if (error) {

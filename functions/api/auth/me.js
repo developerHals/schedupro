@@ -38,6 +38,22 @@ export async function onRequestGet(context) {
   if (!user) {
     const email = await getSessionEmail(request, env);
     if (email) {
+      // Allow haringeylearns.ac.uk domain users to use the app as guests.
+      if (email.endsWith('@haringeylearns.ac.uk')) {
+        return Response.json({
+          data: {
+            user: {
+              id: email,
+              email,
+              full_name: email,
+              role: 'Guest',
+              status: 'active',
+              date_created: null,
+            },
+          },
+          error: null,
+        });
+      }
       // Valid Microsoft session, but the email is not in the users table.
       const headers = new Headers();
       const unauthorizedCookie = await createUnauthorizedCookie(email, secret);

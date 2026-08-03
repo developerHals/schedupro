@@ -160,8 +160,8 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
 
   const handleCellClick = useCallback((roomId, sessionType, booking) => {
     if (booking?.isLearnerTrackSession) return;
-    if (!canEditBookings()) return;
     if (booking) {
+      if (!canEditBookings()) return;
       if (onEditBooking) onEditBooking(booking);
     } else {
       if (onNewBooking) onNewBooking(roomId, sessionType, selectedDate);

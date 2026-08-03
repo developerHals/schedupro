@@ -167,6 +167,12 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
         title="Approve Booking"
         subtitle="Review pending bookings"
       />
+      <MenuButton
+        onClick={() => { onViewChange('users'); setMenuOpen(false); }}
+        icon={FiUsers}
+        title="Users"
+        subtitle="Manage users and roles"
+      />
 
 
 

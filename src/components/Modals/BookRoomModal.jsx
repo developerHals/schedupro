@@ -346,7 +346,7 @@ const BookRoomModal = ({ isOpen, onClose, onSubmit, onEdit, getAvailableRooms, b
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
-                {requestMode ? 'Request a Room' : (bookingToEdit ? 'Edit Booking' : 'Book a Room')}
+                {requestMode ? 'Request a Booking' : (bookingToEdit ? 'Edit Booking' : 'Book a Room')}
               </h2>
               <button 
                 onClick={onClose}
@@ -534,6 +534,14 @@ const BookRoomModal = ({ isOpen, onClose, onSubmit, onEdit, getAvailableRooms, b
               }`}>{formData.notes.length}/{NOTES_MAX}</p>
             </div>
           </div>
+
+          {requestMode && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                You can submit up to <strong>3 booking requests</strong> within a <strong>10-minute</strong> window.
+              </p>
+            </div>
+          )}
 
           {/* Extra Days */}
           <div>

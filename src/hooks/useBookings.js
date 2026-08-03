@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { format, parseISO, getDay } from 'date-fns'
 import { sortRooms } from '../utils/roomSort'
 import { slotsBetween } from '../utils/timeSlots'
@@ -6,7 +6,6 @@ import { dataService } from '../lib/dataService'
 import {
   MOCK_ROOMS,
   MOCK_BOOKINGS,
-  MOCK_COURSES,
   addBooking,
   updateBookingById,
   deleteBookingById,
@@ -39,37 +38,52 @@ export const useBookings = (selectedDate, user = null) => {
     loadData()
   }, [selectedDate])
 
-  const loadData = () => {
+  const loadData = async () => {
     try {
       setLoading(true)
       setError(null)
 
       const dateString = format(selectedDate, 'yyyy-MM-dd')
 
-      // Filter mock bookings for the selected date, excluding hard-coded demo entries
-      let bookingsData = MOCK_BOOKINGS.filter(b => b['Start date'] === dateString && b.created_by !== 'system')
+      const { data, error: qError } = await dataService
+        .from('bookings')
+        .select('*')
+        .eq('Start date', dateString)
 
-      // Enrich with course status from MOCK_COURSES
+      if (qError) throw qError
+
+      // Enrich with course status from MOCK_COURSES for demo fallback / legacy paths
+      let bookingsData = data || []
       const courseIds = [...new Set(bookingsData.map(b => b['Course ID']).filter(Boolean))]
       if (courseIds.length > 0) {
-        const courseMap = new Map(MOCK_COURSES.map(c => [c['Course ID'], c]))
-        bookingsData = bookingsData.map(booking => {
-          if (!booking['Course ID']) return booking
-          const course = courseMap.get(booking['Course ID'])
-          if (!course) return booking
-          return {
-            ...booking,
-            courseStart: course['Start date'],
-            courseEnd: course['End date'],
-            courseStatus: course['Status']
+        try {
+          const { data: coursesData } = await dataService.from('Courses').select('"Course ID", "Start date", "End date", "Status"').in('"Course ID"', courseIds)
+          if (coursesData) {
+            const courseMap = new Map(coursesData.map(c => [c['Course ID'], c]))
+            bookingsData = bookingsData.map(booking => {
+              if (!booking['Course ID']) return booking
+              const course = courseMap.get(booking['Course ID'])
+              if (!course) return booking
+              return {
+                ...booking,
+                courseStart: course['Start date'],
+                courseEnd: course['End date'],
+                courseStatus: course['Status']
+              }
+            })
           }
-        })
+        } catch (e) {
+          console.error('Error enriching bookings with courses:', e)
+        }
       }
 
       setBookings(bookingsData)
     } catch (err) {
-      console.error('Error loading data:', err)
-      setError(err.message || 'Failed to load data.')
+      console.error('Error loading bookings:', err)
+      const dateString = format(selectedDate, 'yyyy-MM-dd')
+      const fallback = MOCK_BOOKINGS.filter(b => b['Start date'] === dateString && b.created_by !== 'system')
+      setBookings(fallback)
+      setError(err.message || 'Failed to load bookings')
     } finally {
       setLoading(false)
     }
@@ -78,31 +92,41 @@ export const useBookings = (selectedDate, user = null) => {
   const createBooking = async (bookingData) => {
     try {
       const toInsert = Array.isArray(bookingData) ? bookingData : [bookingData]
-      const created = toInsert.map(b => addBooking(b))
+      const { data, error } = await dataService.from('bookings').insert(toInsert)
+      if (error) throw error
       loadData()
-      return { data: created, error: null }
+      return { data: data || [], error: null }
     } catch (error) {
-      return { data: null, error }
+      // Fallback to local mock data when D1 is unavailable
+      const created = (Array.isArray(bookingData) ? bookingData : [bookingData]).map(b => addBooking(b))
+      loadData()
+      return { data: created, error: error.message || 'Failed to create booking' }
     }
   }
 
   const updateBooking = async (id, updates) => {
     try {
+      const { data, error } = await dataService.from('bookings').update(updates).eq('id', id)
+      if (error) throw error
+      loadData()
+      return { data: data || [], error: null }
+    } catch (error) {
       const updated = updateBookingById(id, updates)
       loadData()
-      return { data: updated ? [updated] : [], error: null }
-    } catch (error) {
-      return { data: null, error }
+      return { data: updated ? [updated] : [], error: error.message || 'Failed to update booking' }
     }
   }
 
   const deleteBooking = async (id) => {
     try {
-      deleteBookingById(id)
+      const { error } = await dataService.from('bookings').delete().eq('id', id)
+      if (error) throw error
       loadData()
       return { error: null }
     } catch (error) {
-      return { error }
+      deleteBookingById(id)
+      loadData()
+      return { error: error.message || 'Failed to delete booking' }
     }
   }
 
@@ -135,7 +159,7 @@ export const useBookings = (selectedDate, user = null) => {
     }
   }
 
-  const getAvailableRooms = async (startDate, startTime, endTime, bookingIdToExclude = null, endDate = null, courseIdToExclude = null) => {
+  const getAvailableRooms = useCallback((startDate, startTime, endTime, bookingIdToExclude = null, endDate = null, courseIdToExclude = null) => {
     try {
       const startStr = typeof startDate === 'string' ? startDate : format(startDate, 'yyyy-MM-dd')
       const allRooms = rooms && rooms.length > 0 ? rooms : sortRooms(MOCK_ROOMS)
@@ -148,7 +172,7 @@ export const useBookings = (selectedDate, user = null) => {
       const requestedSlots = new Set(slotsBetween(startTime, endTime))
       const roomOccupiedSlots = new Map()
 
-      MOCK_BOOKINGS.forEach(b => {
+      bookings.forEach(b => {
         if (b.created_by === 'system') return
         if (b['Start date'] !== startStr) {
           if (!endDate) return
@@ -163,7 +187,7 @@ export const useBookings = (selectedDate, user = null) => {
         const occupiedByBooking = slotsBetween(b['Start time'], b['End time'])
         const hasConflict = occupiedByBooking.some(s => requestedSlots.has(s))
         if (hasConflict) {
-          if (!roomOccupiedSlots.has(b.Room)) roomOccupiedSlots.set(b.Room, true)
+          if (!roomOccupiedSlots.has(b['Room'])) roomOccupiedSlots.set(b['Room'], true)
         }
       })
 
@@ -179,7 +203,7 @@ export const useBookings = (selectedDate, user = null) => {
       console.error('Error getting available rooms:', error)
       return []
     }
-  }
+  }, [rooms, bookings])
 
   return {
     bookings,
