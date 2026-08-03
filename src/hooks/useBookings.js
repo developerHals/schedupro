@@ -46,8 +46,8 @@ export const useBookings = (selectedDate, user = null) => {
 
       const dateString = format(selectedDate, 'yyyy-MM-dd')
 
-      // Filter mock bookings for the selected date
-      let bookingsData = MOCK_BOOKINGS.filter(b => b['Start date'] === dateString)
+      // Filter mock bookings for the selected date, excluding hard-coded demo entries
+      let bookingsData = MOCK_BOOKINGS.filter(b => b['Start date'] === dateString && b.created_by !== 'system')
 
       // Enrich with course status from MOCK_COURSES
       const courseIds = [...new Set(bookingsData.map(b => b['Course ID']).filter(Boolean))]
@@ -149,6 +149,7 @@ export const useBookings = (selectedDate, user = null) => {
       const roomOccupiedSlots = new Map()
 
       MOCK_BOOKINGS.forEach(b => {
+        if (b.created_by === 'system') return
         if (b['Start date'] !== startStr) {
           if (!endDate) return
           if (b['Start date'] < startStr || b['Start date'] > endDate) return
