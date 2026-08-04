@@ -275,6 +275,12 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
   const renderGuestMenu = () => (
     <>
       <MenuButton
+        onClick={() => { window.open('https://lbharingey.sharepoint.com/:x:/r/sites/haringeylearns/Shared%20Documents/HL%20Service%20file/HL%20Curriculum%20%26%20Quality/HL%20Curriculum%20Planning/Curriculum%20Planning.xlsx?d=w41e82f297d8a45cea090df4859adbc6d&csf=1&web=1&e=RaRmUc', '_blank'); setMenuOpen(false); }}
+        icon={FiShare2}
+        title="Curriculum Plan"
+        subtitle="Open curriculum planning"
+      />
+      <MenuButton
         onClick={() => { setShowQRModal(true); setMenuOpen(false); }}
         icon={FiSmartphone}
         title="QR Access"
