@@ -68,6 +68,7 @@ const SessionsView = ({ onRefresh }) => {
   const [dateFilter, setDateFilter] = useState('');
   const [dayFilter, setDayFilter] = useState('');
   const [roomFilter, setRoomFilter] = useState('');
+  const [showUnallocatedOnly, setShowUnallocatedOnly] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
@@ -103,7 +104,7 @@ const SessionsView = ({ onRefresh }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchFilter, tutorFilter, dateFilter, dayFilter, roomFilter]);
+  }, [searchFilter, tutorFilter, dateFilter, dayFilter, roomFilter, showUnallocatedOnly]);
 
   const handleKeyDown = (e, filterType) => {
     if (e.key !== 'Enter') return;
@@ -114,6 +115,8 @@ const SessionsView = ({ onRefresh }) => {
     if (filterType === 'room') setRoomFilter(roomInput);
   };
 
+  const isUnallocated = (s) => !s.local_room_id && !(s.RoomLabel || '').trim();
+
   const sortedSessions = useMemo(() => {
     return [...sessions].sort((a, b) => {
       const dateA = String(a.Date || '').slice(0, 10);
@@ -123,12 +126,17 @@ const SessionsView = ({ onRefresh }) => {
     });
   }, [sessions]);
 
+  const filteredSessions = useMemo(() => {
+    if (!showUnallocatedOnly) return sortedSessions;
+    return sortedSessions.filter(isUnallocated);
+  }, [sortedSessions, showUnallocatedOnly]);
+
   const paginatedSessions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return sortedSessions.slice(startIndex, startIndex + itemsPerPage);
-  }, [sortedSessions, currentPage, itemsPerPage]);
+    return filteredSessions.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredSessions, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(sessions.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredSessions.length / itemsPerPage);
 
   const handleSaveOverride = async (session, patch) => {
     const updated = await learnerTrackService.patchSessionOverride({
@@ -164,7 +172,7 @@ const SessionsView = ({ onRefresh }) => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Course', 'Course Title', 'Date', 'Day', 'Start', 'End', 'Term', 'Location', 'Room', 'Tutor', 'Booking Status'];
+    const headers = ['Course', 'Course Title', 'Date', 'Day', 'Start', 'End', 'Term', 'Location', 'Room', 'Tutor', 'Course Status', 'Booking Status'];
     const csvContent = [
       headers.join(','),
       ...sessions.map((s) =>
@@ -179,6 +187,7 @@ const SessionsView = ({ onRefresh }) => {
           `"${(s.LocationLabel || '').replace(/"/g, '""')}"`,
           s.local_room_number || s.RoomLabel || '',
           `"${(s.TutorLabel || '').replace(/"/g, '""')}"`,
+          s.CourseStatus || '',
           s.BookingStatus || '',
         ].join(',')
       ),
@@ -304,6 +313,15 @@ const SessionsView = ({ onRefresh }) => {
             onKeyDown={(e) => handleKeyDown(e, 'room')}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+          <label className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showUnallocatedOnly}
+              onChange={(e) => setShowUnallocatedOnly(e.target.checked)}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            Unallocated only
+          </label>
           <button
             onClick={() => {
               setSearchInput('');
@@ -316,6 +334,7 @@ const SessionsView = ({ onRefresh }) => {
               setDateFilter('');
               setDayFilter('');
               setRoomFilter('');
+              setShowUnallocatedOnly(false);
             }}
             className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
           >
@@ -325,14 +344,14 @@ const SessionsView = ({ onRefresh }) => {
       </div>
 
       <div className="px-6 py-2 text-sm text-gray-600 bg-gray-50 border-b border-gray-200">
-        Showing {sessions.length} sessions
+        Showing {filteredSessions.length} sessions
       </div>
 
       <div className="flex-1 overflow-auto">
         <table className="w-full text-left border-collapse">
           <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
-              {['Course', 'Course Title', 'Date', 'Day', 'Start', 'End', 'Term', 'Location', 'Room', 'Tutor', 'Booking Status'].map((header) => (
+              {['Course', 'Course Title', 'Date', 'Day', 'Start', 'End', 'Term', 'Location', 'Room', 'Tutor', 'Course Status', 'Booking Status'].map((header) => (
                 <th key={header} className="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap border-b border-gray-200">
                   {header}
                 </th>
@@ -363,12 +382,13 @@ const SessionsView = ({ onRefresh }) => {
                     />
                   </td>
                   <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{session.TutorLabel}</td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{session.CourseStatus}</td>
                   <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{session.BookingStatus}</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={11} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={12} className="px-6 py-12 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">
                     <div className="bg-gray-50 p-4 rounded-full mb-3">
                       <SafeIcon icon={FiCalendar} className="h-6 w-6 text-gray-400" />
