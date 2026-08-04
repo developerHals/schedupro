@@ -76,9 +76,16 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
 
     const resolveRoom = (roomLabel, location) => {
       const raw = String(roomLabel || '').trim().toLowerCase();
-      if (!raw) return null;
-
       const loc = String(location || '').toLowerCase().trim();
+
+      // If no room number is given but the session has a non-Wood Green location,
+      // fall back to the first room in the rooms table at that location.
+      if (!raw) {
+        if (loc.includes('wood green')) return null;
+        const fallback = rooms.find(r => String(r.location || '').toLowerCase().trim() === loc);
+        return fallback || null;
+      }
+
       const roomNum = raw.replace(/^room\s*/i, '').trim();
 
       if (loc) {
@@ -125,7 +132,8 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
     let matchedSessions = 0;
     (sessions || []).forEach(session => {
       const status = String(session.BookingStatus || '').trim().toLowerCase();
-      if (status.includes('cancel')) return;
+      const courseStatus = String(session.CourseStatus || '').trim().toLowerCase();
+      if (status.includes('cancel') || courseStatus.includes('cancel')) return;
 
       const isWoodGreen = String(session.LocationLabel || '').toLowerCase().includes('wood green');
       const sessionRoomLabel = isWoodGreen

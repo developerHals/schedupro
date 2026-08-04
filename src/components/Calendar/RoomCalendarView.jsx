@@ -39,22 +39,38 @@ const RoomCalendarView = ({ rooms = [], selectedDate, onDateChange }) => {
       const startStr = format(start, 'yyyy-MM-dd');
       const endStr = format(end, 'yyyy-MM-dd');
 
+      const isCancelled = (status) => String(status || '').trim().toLowerCase().includes('cancel');
+
       const sessions = await learnerTrackService.getSessions({ dateFrom: startStr, dateTo: endStr });
 
-      const mapped = (sessions || []).map(session => ({
-        id: `lt-${session.ID}`,
-        date: session.Date ? session.Date.slice(0, 10) : '',
-        start_time: session.StartTime || '',
-        end_time: session.EndTime || '',
-        course_code: session.CourseShortLabel || session.CourseLabel || 'LT',
-        course_name: session.CourseTitle || 'Learner Track Session',
-        tutor: session.TutorLabel || '',
-        room: session.local_room_number || session.RoomLabel || '',
-        location: session.LocationLabel || '',
-        notes: '',
-        course_start: null,
-        course_end: null
-      }));
+      const isWoodGreen = (loc) => String(loc || '').toLowerCase().includes('wood green');
+      const fallbackRoomForLocation = (loc) => {
+        const l = String(loc || '').toLowerCase().trim();
+        if (!l || l.includes('wood green')) return null;
+        return rooms.find(r => String(r.location || '').toLowerCase().trim() === l) || null;
+      };
+
+      const mapped = (sessions || [])
+        .filter(s => !isCancelled(s.BookingStatus) && !isCancelled(s.CourseStatus))
+        .map(session => {
+          const fallback = !session.local_room_number && !session.RoomLabel && !isWoodGreen(session.LocationLabel)
+            ? fallbackRoomForLocation(session.LocationLabel)
+            : null;
+          return {
+            id: `lt-${session.ID}`,
+            date: session.Date ? session.Date.slice(0, 10) : '',
+            start_time: session.StartTime || '',
+            end_time: session.EndTime || '',
+            course_code: session.CourseShortLabel || session.CourseLabel || 'LT',
+            course_name: session.CourseTitle || 'Learner Track Session',
+            tutor: session.TutorLabel || '',
+            room: fallback?.room_number || session.local_room_number || session.RoomLabel || '',
+            location: session.LocationLabel || '',
+            notes: '',
+            course_start: null,
+            course_end: null
+          };
+        });
 
       setAllBookings(mapped);
     } catch (error) {
@@ -62,7 +78,7 @@ const RoomCalendarView = ({ rooms = [], selectedDate, onDateChange }) => {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, viewType]);
+  }, [selectedDate, viewType, rooms]);
 
   const bookings = useMemo(() => {
     if (!selectedRoomId) return [];

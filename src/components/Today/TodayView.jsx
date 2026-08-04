@@ -27,7 +27,7 @@ const TodayView = ({ selectedDate }) => {
       const data = await learnerTrackService.getSessions({ date: dateStr });
 
       const enriched = (data || [])
-        .filter((s) => !isCancelled(s.BookingStatus))
+        .filter((s) => !isCancelled(s.BookingStatus) && !isCancelled(s.CourseStatus))
         .sort((a, b) => {
           const dateA = String(a.Date || '').slice(0, 10);
           const dateB = String(b.Date || '').slice(0, 10);

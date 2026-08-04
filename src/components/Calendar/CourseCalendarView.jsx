@@ -40,9 +40,13 @@ const CourseCalendarView = ({ selectedDate, onDateChange }) => {
       const startStr = format(start, 'yyyy-MM-dd');
       const endStr = format(end, 'yyyy-MM-dd');
 
+      const isCancelled = (status) => String(status || '').trim().toLowerCase().includes('cancel');
+
       const sessions = await learnerTrackService.getSessions({ dateFrom: startStr, dateTo: endStr });
 
-      const mapped = (sessions || []).map(session => ({
+      const mapped = (sessions || [])
+        .filter(s => !isCancelled(s.BookingStatus) && !isCancelled(s.CourseStatus))
+        .map(session => ({
         id: `lt-${session.ID}`,
         date: session.Date ? session.Date.slice(0, 10) : '',
         start_time: session.StartTime || '',

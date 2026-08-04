@@ -86,8 +86,7 @@ const COLUMNS = [
   { key: 'Weeks', label: 'Weeks' },
   { key: 'AvailablePlaces', label: 'Places' },
   { key: 'Level', label: 'Level' },
-  { key: 'ApprovalLabel', label: 'Approval' },
-  { key: 'TotalFeePayable', label: 'Fee' },
+  { key: 'OptionGroup', label: 'Option Group' },
 ];
 
 const CourseView = ({ user }) => {
@@ -158,7 +157,7 @@ const CourseView = ({ user }) => {
 
   const handleExportCSV = () => {
     if (courses.length === 0) return;
-    const headers = COLUMNS.map((c) => c.label).concat(['Local Notes', 'Local Status']);
+    const headers = COLUMNS.map((c) => c.label).concat(['Local Notes']);
     const csvContent = [
       headers.join(','),
       ...courses.map((course) =>
@@ -166,7 +165,7 @@ const CourseView = ({ user }) => {
           const val = course[c.key];
           return typeof val === 'string' && val.includes(',') ? `"${val}"` : (val ?? '');
         })
-          .concat([course.local_notes || '', course.local_status || ''])
+          .concat([course.local_notes || ''])
           .join(',')
       ),
     ].join('\n');
@@ -287,9 +286,6 @@ const CourseView = ({ user }) => {
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap border-b border-gray-100">
                 Local Notes
               </th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap border-b border-gray-100">
-                Local Status
-              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -311,18 +307,11 @@ const CourseView = ({ user }) => {
                       onSave={(val) => handleSaveOverride(course, 'local_notes', val)}
                     />
                   </td>
-                  <td className="px-6 py-2 text-sm">
-                    <OverrideCell
-                      value={course.local_status}
-                      placeholder="Add status..."
-                      onSave={(val) => handleSaveOverride(course, 'local_status', val)}
-                    />
-                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={COLUMNS.length + 2} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={COLUMNS.length + 1} className="px-6 py-12 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">
                     <div className="bg-gray-50 p-4 rounded-full mb-3">
                       <SafeIcon icon={FiBook} className="h-6 w-6 text-gray-400" />

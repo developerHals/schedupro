@@ -274,18 +274,6 @@ const Header = ({ selectedDate, setSelectedDate, onViewChange, currentView, onBo
 
   const renderGuestMenu = () => (
     <>
-      <button
-        onClick={() => { onRequestBooking?.(); setMenuOpen(false); }}
-        className="flex items-center p-3 rounded-xl transition-colors group w-full bg-red-50 hover:bg-red-100 mb-1"
-      >
-        <div className="bg-white p-2.5 rounded-lg shadow-sm mr-3 text-red-600">
-          <SafeIcon icon={FiCalendar} className="h-4 w-4" />
-        </div>
-        <div className="text-left">
-          <p className="text-sm font-bold text-red-700">Request a Booking</p>
-          <p className="text-[10px] text-red-500 font-medium">Submit an external room request</p>
-        </div>
-      </button>
       <MenuButton
         onClick={() => { setShowQRModal(true); setMenuOpen(false); }}
         icon={FiSmartphone}
