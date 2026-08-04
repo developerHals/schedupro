@@ -6,6 +6,20 @@ function parseCapacity(value) {
   return Number.isNaN(parsed) || parsed < 0 ? 20 : parsed;
 }
 
+async function ensureLocationColumn(db) {
+  try {
+    const { results } = await db.prepare('PRAGMA table_info(rooms)').all();
+    if (!results) return;
+    const hasLocation = results.some(col => col.name === 'location');
+    if (!hasLocation) {
+      await db.prepare('ALTER TABLE rooms ADD COLUMN location TEXT DEFAULT \'Wood Green Learning Centre\'').run();
+      await db.prepare('UPDATE rooms SET location = \'Wood Green Learning Centre\' WHERE location IS NULL OR location = \'\'').run();
+    }
+  } catch (e) {
+    console.error('ensureLocationColumn:', e);
+  }
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const db = env.schedupro_db;
@@ -13,6 +27,8 @@ export async function onRequest(context) {
     return new Response('Database not configured', { status: 500 });
   }
   const url = new URL(request.url);
+
+  await ensureLocationColumn(db);
 
   try {
     const writeMethods = ['POST', 'PATCH', 'DELETE'];
@@ -26,7 +42,7 @@ export async function onRequest(context) {
 
   if (request.method === 'GET') {
     const roomNumber = url.searchParams.get('room_number');
-    let sql = 'SELECT id, room_number, address, capacity, created_at FROM rooms';
+    let sql = 'SELECT id, room_number, location, address, capacity, created_at FROM rooms';
     let stmt;
     if (roomNumber) {
       sql += ' WHERE room_number = ?1';
@@ -45,11 +61,14 @@ export async function onRequest(context) {
     for (const row of rows) {
       const id = crypto.randomUUID();
       const capacity = parseCapacity(row.capacity);
+      const location = row.location !== undefined && row.location !== null && row.location !== ''
+        ? row.location
+        : 'Wood Green Learning Centre';
       await db
-        .prepare('INSERT INTO rooms (id, room_number, address, capacity) VALUES (?1, ?2, ?3, ?4)')
-        .bind(id, row.room_number || '', row.address || '', capacity)
+        .prepare('INSERT INTO rooms (id, room_number, location, address, capacity) VALUES (?1, ?2, ?3, ?4, ?5)')
+        .bind(id, row.room_number || '', location, row.address || '', capacity)
         .run();
-      created.push({ id, ...row, capacity });
+      created.push({ id, room_number: row.room_number, location, address: row.address || '', capacity });
     }
     return Response.json({ data: created, error: null }, { status: 201 });
   }
@@ -65,6 +84,10 @@ export async function onRequest(context) {
     if (body.room_number !== undefined) {
       fields.push(`room_number = ?${values.length + 1}`);
       values.push(body.room_number);
+    }
+    if (body.location !== undefined) {
+      fields.push(`location = ?${values.length + 1}`);
+      values.push(body.location);
     }
     if (body.address !== undefined) {
       fields.push(`address = ?${values.length + 1}`);
@@ -87,7 +110,7 @@ export async function onRequest(context) {
       .bind(...values)
       .run();
     const updated = await db
-      .prepare('SELECT id, room_number, address, capacity, created_at FROM rooms WHERE id = ?1')
+      .prepare('SELECT id, room_number, location, address, capacity, created_at FROM rooms WHERE id = ?1')
       .bind(id)
       .first();
     return Response.json({ data: updated, error: null });

@@ -23,7 +23,7 @@ export const useBookings = (selectedDate, user = null) => {
   useEffect(() => {
     const fetchRooms = async () => {
       try {
-        const { data, error } = await dataService.from('rooms').select('id, room_number')
+        const { data, error } = await dataService.from('rooms').select('*')
         if (error) throw error
         setRooms(sortRooms(data || []))
       } catch (err) {

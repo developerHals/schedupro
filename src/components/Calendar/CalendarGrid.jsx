@@ -50,24 +50,46 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
   const bookingsLookup = useMemo(() => {
     if (!Array.isArray(rooms)) return {};
 
-    // Build room normalisation map  (room_number and id → room object)
+    // Build room normalisation maps
+    // roomMap: id or room_number → room (no location context)
+    // locationRoomMap: 'location|room_number' → room
     const roomMap = new Map();
+    const locationRoomMap = new Map();
     rooms.forEach(room => {
       roomMap.set(String(room.id).toLowerCase().trim(), room);
       if (room.room_number) {
-        roomMap.set(String(room.room_number).toLowerCase().trim(), room);
+        const rn = String(room.room_number).toLowerCase().trim();
+        roomMap.set(rn, room);
+
+        // Add location-qualified entries
+        const loc = String(room.location || '').toLowerCase().trim();
+        if (loc) {
+          const bare = rn.replace(/^room\s*/i, '').trim();
+          locationRoomMap.set(`${loc}|${rn}`, room);
+          locationRoomMap.set(`${loc}|${bare}`, room);
+          locationRoomMap.set(`${loc}|room ${bare}`, room);
+        }
       }
     });
 
     const lookup = {}; // { roomId: { slotTime: { booking, isFirstSlot, slotSpan } } }
 
-    const resolveRoom = (roomLabel) => {
+    const resolveRoom = (roomLabel, location) => {
       const raw = String(roomLabel || '').trim().toLowerCase();
       if (!raw) return null;
-      if (roomMap.has(raw)) return roomMap.get(raw);
 
-      // Normalise "Room 3" <-> "3" in both directions
-      const roomNum = raw.replace(/^room\s*/i, '');
+      const loc = String(location || '').toLowerCase().trim();
+      const roomNum = raw.replace(/^room\s*/i, '').trim();
+
+      if (loc) {
+        // Try to match within the same location first
+        const locKey = `${loc}|${raw}`;
+        if (locationRoomMap.has(locKey)) return locationRoomMap.get(locKey);
+        if (locationRoomMap.has(`${loc}|room ${roomNum}`)) return locationRoomMap.get(`${loc}|room ${roomNum}`);
+        if (locationRoomMap.has(`${loc}|${roomNum}`)) return locationRoomMap.get(`${loc}|${roomNum}`);
+      }
+
+      if (roomMap.has(raw)) return roomMap.get(raw);
       if (roomMap.has(roomNum)) return roomMap.get(roomNum);
       if (roomMap.has(`room ${raw}`)) return roomMap.get(`room ${raw}`);
 
@@ -105,7 +127,11 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
       const status = String(session.BookingStatus || '').trim().toLowerCase();
       if (status.includes('cancel')) return;
 
-      const room = resolveRoom(session.local_room_number || session.RoomLabel || session.RoomId);
+      const isWoodGreen = String(session.LocationLabel || '').toLowerCase().includes('wood green');
+      const sessionRoomLabel = isWoodGreen
+        ? (session.local_room_number || session.RoomLabel || session.RoomId)
+        : (session.local_room_number || session.RoomLabel);
+      const room = resolveRoom(sessionRoomLabel, session.LocationLabel);
       if (!room) return;
       matchedSessions++;
 

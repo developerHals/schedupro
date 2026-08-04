@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS rooms (
   id TEXT PRIMARY KEY,
   room_number TEXT NOT NULL,
+  location TEXT DEFAULT 'Wood Green Learning Centre',
   address TEXT,
   capacity INTEGER DEFAULT 20,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP

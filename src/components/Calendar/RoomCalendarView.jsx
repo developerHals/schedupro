@@ -50,6 +50,7 @@ const RoomCalendarView = ({ rooms = [], selectedDate, onDateChange }) => {
         course_name: session.CourseTitle || 'Learner Track Session',
         tutor: session.TutorLabel || '',
         room: session.local_room_number || session.RoomLabel || '',
+        location: session.LocationLabel || '',
         notes: '',
         course_start: null,
         course_end: null
@@ -68,11 +69,16 @@ const RoomCalendarView = ({ rooms = [], selectedDate, onDateChange }) => {
     const selectedRoom = rooms.find(r => r.id === selectedRoomId);
     if (!selectedRoom) return [];
     const roomNumber = String(selectedRoom.room_number || '');
-    return allBookings.filter(b =>
-      String(b.room) === roomNumber ||
-      String(b.room).toLowerCase() === roomNumber.toLowerCase() ||
-      (selectedRoom.name && String(b.room).toLowerCase() === String(selectedRoom.name).toLowerCase())
-    );
+    const roomLocation = String(selectedRoom.location || '').toLowerCase().trim();
+    return allBookings.filter(b => {
+      const bRoom = String(b.room || '').toLowerCase().trim();
+      const bLocation = String(b.location || '').toLowerCase().trim();
+      const roomMatch = bRoom === roomNumber.toLowerCase().trim() ||
+        bRoom === roomNumber.toLowerCase().trim() ||
+        (selectedRoom.name && bRoom === String(selectedRoom.name).toLowerCase().trim());
+      const locationMatch = !roomLocation || !bLocation || bLocation === roomLocation;
+      return roomMatch && locationMatch;
+    });
   }, [allBookings, selectedRoomId, rooms]);
 
   useEffect(() => {
