@@ -21,22 +21,40 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
   const bodyScrollRef = useRef(null);
   const syncLockRef = useRef(false);
 
+  const loadSessionsRequestIdRef = useRef(0);
+
+  const loadSessions = useCallback(async () => {
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const requestId = ++loadSessionsRequestIdRef.current;
+    try {
+      setSessionsError(null);
+      const data = await learnerTrackService.getSessions({ date: dateStr });
+      console.log('[CalendarGrid] sessions loaded for', dateStr, ':', data?.length || 0, data);
+      if (requestId === loadSessionsRequestIdRef.current) setSessions(data || []);
+    } catch (err) {
+      if (requestId === loadSessionsRequestIdRef.current) setSessionsError(err.message || 'Failed to load sessions');
+    }
+  }, [selectedDate]);
+
   useEffect(() => {
-    let cancelled = false;
-    const loadSessions = async () => {
-      try {
-        setSessionsError(null);
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        const data = await learnerTrackService.getSessions({ date: dateStr });
-        console.log('[CalendarGrid] sessions loaded for', dateStr, ':', data?.length || 0, data);
-        if (!cancelled) setSessions(data || []);
-      } catch (err) {
-        if (!cancelled) setSessionsError(err.message || 'Failed to load sessions');
+    loadSessions();
+    const intervalId = window.setInterval(loadSessions, 5 * 60000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadSessions();
       }
     };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [loadSessions]);
+
+  const handleRefresh = useCallback(() => {
+    if (onRefresh) onRefresh();
     loadSessions();
-    return () => { cancelled = true; };
-  }, [selectedDate]);
+  }, [onRefresh, loadSessions]);
 
 
   /**
@@ -252,7 +270,7 @@ const CalendarGrid = ({ bookings, rooms, selectedDate, onBookingUpdate, onBookin
               title="Open Notifications">
               <FiIcons.FiBell className="h-4 w-4 group-hover:animate-swing" />
             </a>
-            <button onClick={onRefresh}
+            <button onClick={handleRefresh}
               className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               title="Refresh">
               <SafeIcon icon={FiRefreshCw} className="h-4 w-4" />
